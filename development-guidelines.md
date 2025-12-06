@@ -479,16 +479,24 @@ sam deploy --guided
 
 ##### Python プロジェクトの場合
 ```bash
-# 1. 依存関係の確認
+# 1. コードフォーマット（必須）
+python3 -m black src/ tests/
+# または特定のディレクトリのみ
+python3 -m black [target_directory]
+
+# 2. フォーマットチェック（確認用）
+python3 -m black --check src/ tests/
+
+# 3. 依存関係の確認
 pip install -e .
 python -c "import [main_module]; print('✓ Import successful')"
 
-# 2. 基本機能テスト
+# 4. 基本機能テスト
 [main_command] --version
 [main_command] --help
 [main_command] --run-tests
 
-# 3. 重要機能の動作確認
+# 5. 重要機能の動作確認
 [main_command] [key_functionality]
 ```
 
@@ -608,9 +616,34 @@ git tag v1.x.x
 ### 6. 自動化による品質保証
 
 #### Pre-commit フックの設定
-```bash
+
+##### Python プロジェクト向け設定例
+```yaml
 # .pre-commit-config.yaml
 repos:
+  # Black フォーマッター
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+        args: [--line-length=88]
+  
+  # isort（import文の整理）
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--profile=black]
+  
+  # flake8（Lintチェック）
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: [--max-line-length=88, --extend-ignore=E203]
+  
+  # ローカルテスト
   - repo: local
     hooks:
       - id: local-tests
@@ -618,6 +651,20 @@ repos:
         entry: ./scripts/pre-commit-tests.sh
         language: script
         pass_filenames: false
+```
+
+##### Pre-commit のインストールと有効化
+```bash
+# pre-commit のインストール
+pip install pre-commit
+
+# プロジェクトに pre-commit フックを設定
+pre-commit install
+
+# 全ファイルに対して手動実行（初回）
+pre-commit run --all-files
+
+# 以降、git commit 時に自動実行される
 ```
 
 #### CI/CD での段階的検証
@@ -678,6 +725,7 @@ git tag v1.x.x-hotfix.1
 ### 8. 検証チェックリスト
 
 #### コミット前必須チェック項目
+- [ ] **コードフォーマット実行完了**（Python: black、JavaScript: prettier等）
 - [ ] ローカルでの基本機能テスト完了
 - [ ] 依存関係の完全性確認完了
 - [ ] 設定ファイルの構文チェック完了
@@ -714,6 +762,12 @@ git tag v1.x.x-hotfix.1
 - **原因**: ワークフローテンプレートの不備
 - **対策**: ワークフローファイルの構文チェック追加
 - **予防策**: GitHub Actions のローカル実行テスト導入
+
+### 問題: Black フォーマッターエラー
+- **発生日**: 2025-12-06
+- **原因**: コミット前にコードフォーマットを実行していなかった
+- **対策**: コミット前に `python3 -m black src/ tests/` を実行
+- **予防策**: Pre-commit フックで Black を自動実行する設定を追加
 ```
 
 ## テスト戦略とベストプラクティス（必須）
