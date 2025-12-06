@@ -479,24 +479,28 @@ sam deploy --guided
 
 ##### Python プロジェクトの場合
 ```bash
-# 1. コードフォーマット（必須）
+# 1. import文の整理（必須）
+python3 -m isort --profile black src/ tests/
+
+# 2. コードフォーマット（必須）
 python3 -m black src/ tests/
 # または特定のディレクトリのみ
 python3 -m black [target_directory]
 
-# 2. フォーマットチェック（確認用）
+# 3. フォーマットチェック（確認用）
+python3 -m isort --check-only --profile black src/ tests/
 python3 -m black --check src/ tests/
 
-# 3. 依存関係の確認
+# 4. 依存関係の確認
 pip install -e .
 python -c "import [main_module]; print('✓ Import successful')"
 
-# 4. 基本機能テスト
+# 5. 基本機能テスト
 [main_command] --version
 [main_command] --help
 [main_command] --run-tests
 
-# 5. 重要機能の動作確認
+# 6. 重要機能の動作確認
 [main_command] [key_functionality]
 ```
 
@@ -725,6 +729,7 @@ git tag v1.x.x-hotfix.1
 ### 8. 検証チェックリスト
 
 #### コミット前必須チェック項目
+- [ ] **import文の整理実行完了**（Python: isort）
 - [ ] **コードフォーマット実行完了**（Python: black、JavaScript: prettier等）
 - [ ] ローカルでの基本機能テスト完了
 - [ ] 依存関係の完全性確認完了
@@ -768,6 +773,12 @@ git tag v1.x.x-hotfix.1
 - **原因**: コミット前にコードフォーマットを実行していなかった
 - **対策**: コミット前に `python3 -m black src/ tests/` を実行
 - **予防策**: Pre-commit フックで Black を自動実行する設定を追加
+
+### 問題: isort import文整理エラー
+- **発生日**: 2025-12-06
+- **原因**: コミット前に import 文の整理を実行していなかった
+- **対策**: コミット前に `python3 -m isort --profile black src/ tests/` を実行
+- **予防策**: Pre-commit フックで isort を自動実行する設定を追加（Black互換のため --profile black を使用）
 ```
 
 ## テスト戦略とベストプラクティス（必須）
