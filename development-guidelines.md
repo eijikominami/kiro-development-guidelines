@@ -11,6 +11,175 @@
 - **Infrastructure as Code**: CloudFormation/SAMテンプレートでインフラ管理
 - **CI/CD**: AWS CodePipeline等による自動デプロイ
 - **監視・ログ**: CloudWatch、X-Rayによる可観測性確保
+- **ブランチ戦略**: 機能開発は feature ブランチで行い、main ブランチへの直接コミットは避ける
+
+## ブランチ戦略（必須）
+
+### 基本原則
+
+**重要**: main ブランチへの直接コミットは避け、必ず feature ブランチを使用する
+
+### ブランチの種類
+
+#### 1. main ブランチ
+- **用途**: 本番環境にデプロイ可能な安定版コード
+- **保護**: 直接コミット禁止
+- **マージ**: feature ブランチからのみマージ可能
+- **タグ**: リリース時にバージョンタグを付与
+
+#### 2. feature ブランチ
+- **命名規則**: `feature/<機能名>` または `fix/<修正内容>`
+- **用途**: 新機能開発、バグ修正、リファクタリング
+- **作成元**: main ブランチから分岐
+- **マージ先**: main ブランチへマージ
+
+### ワークフロー
+
+#### 機能開発の流れ
+```bash
+# 1. main ブランチを最新化
+git checkout main
+git pull origin main
+
+# 2. feature ブランチを作成
+git checkout -b feature/remove-daemon-functionality
+
+# 3. 開発作業
+# - コードの変更
+# - テストの実行
+# - コミット
+
+git add .
+git commit -m "Remove daemon functionality"
+
+# 4. リモートにプッシュ
+git push origin feature/remove-daemon-functionality
+
+# 5. main ブランチへマージ
+git checkout main
+git merge feature/remove-daemon-functionality
+
+# 6. リモートの main を更新
+git push origin main
+
+# 7. feature ブランチを削除（オプション）
+git branch -d feature/remove-daemon-functionality
+git push origin --delete feature/remove-daemon-functionality
+```
+
+#### バグ修正の流れ
+```bash
+# 1. fix ブランチを作成
+git checkout -b fix/github-actions-pyobjc-issue
+
+# 2. 修正作業
+git add .
+git commit -m "Fix GitHub Actions workflow to remove PyObjC resources"
+
+# 3. main へマージ
+git checkout main
+git merge fix/github-actions-pyobjc-issue
+git push origin main
+```
+
+#### ホットフィックスの流れ（緊急修正）
+```bash
+# 1. hotfix ブランチを作成
+git checkout -b hotfix/v1.2.1-integration-test-fix
+
+# 2. 最小限の修正
+git add .
+git commit -m "Fix integration test imports"
+
+# 3. main へマージ
+git checkout main
+git merge hotfix/v1.2.1-integration-test-fix
+git push origin main
+
+# 4. 緊急リリースタグ
+git tag v1.2.1
+git push origin v1.2.1
+```
+
+### リリースプロセス
+
+#### 通常リリース
+```bash
+# 1. main ブランチが安定していることを確認
+git checkout main
+git pull origin main
+
+# 2. バージョンを更新（__init__.py, CHANGELOG.md など）
+# 3. コミット
+git add .
+git commit -m "Bump version to 1.3.0"
+git push origin main
+
+# 4. タグを作成
+git tag v1.3.0
+git push origin v1.3.0
+```
+
+#### プレリリース（ベータ版）
+```bash
+# 1. beta ブランチを作成
+git checkout -b beta/v1.3.0-beta.1
+
+# 2. ベータ版としてタグ付け
+git tag v1.3.0-beta.1
+git push origin v1.3.0-beta.1
+
+# 3. テスト後、問題なければ main へマージ
+git checkout main
+git merge beta/v1.3.0-beta.1
+git tag v1.3.0
+git push origin v1.3.0
+```
+
+### 避けるべきパターン
+
+#### ❌ 悪い例
+```bash
+# main ブランチで直接作業（今回のケース）
+git checkout main
+# 変更作業...
+git add .
+git commit -m "Fix something"
+git push origin main
+```
+
+#### ✅ 良い例
+```bash
+# feature ブランチで作業
+git checkout -b feature/fix-something
+# 変更作業...
+git add .
+git commit -m "Fix something"
+git push origin feature/fix-something
+
+# main へマージ
+git checkout main
+git merge feature/fix-something
+git push origin main
+```
+
+### ブランチ管理のベストプラクティス
+
+1. **小さく頻繁にコミット**: 大きな変更を避け、小さな単位でコミット
+2. **明確なコミットメッセージ**: 何を変更したか、なぜ変更したかを明記
+3. **定期的なマージ**: feature ブランチが長期化しないよう、定期的に main へマージ
+4. **コンフリクトの早期解決**: main の変更を定期的に feature ブランチへマージ
+5. **ブランチの削除**: マージ後は不要な feature ブランチを削除
+
+### 今後の対応
+
+今回は main ブランチで直接作業してしまいましたが、今後は以下のように対応します：
+
+1. **新機能開発**: `feature/` ブランチを作成
+2. **バグ修正**: `fix/` ブランチを作成
+3. **緊急修正**: `hotfix/` ブランチを作成
+4. **テスト完了後**: main ブランチへマージ
+5. **リリース**: main ブランチでタグを作成
 
 ## 技術スタック
 
@@ -76,7 +245,7 @@ cfn-lint template.yaml
 - **ガイドライン準拠確認**: ガイドライン準拠が要求されている場合は準拠状況を確認
 
 ### CloudFormation/SAMテンプレート作成/更新時の必須手順
-1. **CloudFormation Template Guidelines確認**: ステアリングファイルのcloudformation-template-guidelines.mdを参照
+1. **AWS CloudFormation Guidelines確認**: ステアリングファイルのaws-cloudformation-guidelines.mdを参照
 2. **必須セクション順序の遵守**: AWSTemplateFormatVersion → Transform → Description → Metadata → Parameters → Resources → Outputs
 3. **Description形式の適用**: `aws-cloudformation-templates/[service]/[template] [action] [service].`
 4. **Metadata構造の実装**: `AWS::CloudFormation::Interface`を使用
@@ -201,8 +370,337 @@ sam deploy --guided
 3. **値の取得待ち**: ユーザーから実際の値を取得するまで待機
 4. **デプロイ実行**: 実際の値を使用してデプロイを実行
 
+## 実装変更時の仕様書・ドキュメント整合性確認（必須）
+
+### 実装変更後の必須確認プロセス
+
+**重要**: 試行錯誤やエラー解消のために実装を変更した場合、必ず以下の確認を行う
+
+#### 1. 仕様書への影響確認（必須）
+- **要件定義書 (requirements.md)**: 変更が要件の受け入れ基準に影響しないか確認
+- **設計書 (design.md)**: アーキテクチャや設計方針との整合性を確認
+- **実装計画書 (tasks.md)**: タスクの前提条件や依存関係に影響しないか確認
+
+#### 2. ドキュメントへの影響確認（必須）
+- **README.md**: インストール手順、使用方法、設定例の更新が必要か確認
+- **CHANGELOG.md**: 変更内容の記録が必要か確認
+- **API仕様書**: インターフェース変更がある場合は更新
+- **設定ファイル例**: デフォルト値や設定項目の変更を反映
+
+#### 3. 外部システムへの影響確認
+- **GitHub Actions**: ワークフローファイルの更新が必要か確認
+- **Homebrew Formula**: 依存関係や設定の変更を反映
+- **Docker設定**: コンテナ設定やビルドプロセスへの影響を確認
+
+#### 4. 確認チェックリスト
+
+##### 実装変更時の必須チェック項目
+- [ ] 要件定義書の受け入れ基準との整合性を確認
+- [ ] 設計書のアーキテクチャ図・設計方針との整合性を確認
+- [ ] README.mdの手順・設定例が最新の実装と一致するか確認
+- [ ] CHANGELOG.mdに変更内容を記録
+- [ ] 設定ファイル例やデフォルト値を更新
+- [ ] GitHub Actions等の自動化スクリプトを更新
+- [ ] 依存関係の変更をパッケージ管理ファイルに反映
+
+##### 特に注意すべき変更パターン
+- **設定ファイル形式の変更**: 例、サンプル、ドキュメントをすべて更新
+- **コマンドラインオプションの変更**: README、ヘルプテキスト、使用例を更新
+- **依存関係の追加・削除**: requirements.txt、Formula、インストール手順を更新
+- **デフォルト動作の変更**: 要件定義、設計書、ユーザーガイドを確認・更新
+- **エラーメッセージの変更**: トラブルシューティングガイドを更新
+
+#### 5. 更新作業の実行順序
+1. **仕様書の更新**: requirements.md → design.md → tasks.md の順で更新
+2. **ドキュメントの更新**: README.md → CHANGELOG.md → その他ドキュメント
+3. **外部システムの更新**: GitHub Actions → Homebrew Formula → その他設定
+4. **整合性の最終確認**: 全体を通して矛盾がないか確認
+
+#### 6. 更新漏れ防止のための原則
+- **変更の影響範囲を事前に特定**: 変更前に影響を受ける可能性のあるファイルをリストアップ
+- **段階的な更新**: 一度にすべてを変更せず、段階的に更新して整合性を確認
+- **レビューの実施**: 可能であれば第三者による整合性レビューを実施
+- **テストの実行**: 更新後は必ず動作テストを実行して問題がないことを確認
+
+### 実装変更の記録
+
+#### 変更ログの記録項目
+- **変更理由**: なぜ変更が必要だったか（エラー解消、機能改善等）
+- **変更内容**: 具体的に何を変更したか
+- **影響範囲**: どのファイル・システムに影響があったか
+- **更新したドキュメント**: 整合性確保のために更新したファイル一覧
+
+#### 例：変更記録テンプレート
+```markdown
+## 実装変更記録
+
+### 変更理由
+- macOS セキュリティ制限により Homebrew post_install での LaunchAgent 作成が失敗
+
+### 変更内容
+- Homebrew Formula から自動有効化処理を削除
+- ユーザー手動有効化方式に変更
+
+### 影響範囲
+- homebrew-display-layout-manager/Formula/display-layout-manager.rb
+- .github/workflows/release.yml
+
+### 更新したドキュメント
+- .kiro/specs/display-layout-manager/requirements.md (要件16)
+- display-layout-manager/README.md (常駐機能セクション)
+```
+
+## コミット前品質保証メカニズム（必須）
+
+### コミット前の必須検証プロセス
+
+**重要**: コミット・プッシュ前に以下の検証を必ず実行し、問題を事前に発見・修正する
+
+#### 1. ローカル統合テスト（必須）
+
+##### Python プロジェクトの場合
+```bash
+# 1. 依存関係の確認
+pip install -e .
+python -c "import [main_module]; print('✓ Import successful')"
+
+# 2. 基本機能テスト
+[main_command] --version
+[main_command] --help
+[main_command] --run-tests
+
+# 3. 重要機能の動作確認
+[main_command] [key_functionality]
+```
+
+##### Homebrew Formula の場合
+```bash
+# 1. Formula 構文チェック
+brew audit --strict [formula_name]
+
+# 2. ローカルビルドテスト
+brew install --build-from-source [formula_name]
+
+# 3. インストール後テスト
+[installed_command] --version
+[installed_command] [basic_test]
+
+# 4. アンインストールテスト
+brew uninstall [formula_name]
+```
+
+#### 2. 環境別テスト（推奨）
+
+##### 仮想環境でのテスト
+```bash
+# Python 仮想環境でのクリーンテスト
+python -m venv test_env
+source test_env/bin/activate
+pip install .
+[test_commands]
+deactivate
+rm -rf test_env
+```
+
+##### Docker でのテスト（可能な場合）
+```bash
+# クリーンな macOS 環境でのテスト
+docker run --rm -v $(pwd):/workspace macos-test:latest \
+  /bin/bash -c "cd /workspace && [test_commands]"
+```
+
+#### 3. 依存関係検証（必須）
+
+##### 依存関係の完全性確認
+```bash
+# Python: requirements.txt と pyproject.toml の整合性
+pip-compile --dry-run pyproject.toml
+pip check
+
+# Homebrew: リソースの存在確認
+curl -I [resource_url]  # 各リソース URL の存在確認
+```
+
+##### 外部サービス依存の確認
+```bash
+# GitHub Actions ワークフローの構文チェック
+act --dry-run  # GitHub Actions のローカル実行ツール
+
+# または GitHub CLI での確認
+gh workflow view [workflow_name]
+```
+
+#### 4. 設定ファイル・ドキュメント検証（必須）
+
+##### 設定ファイルの妥当性確認
+```bash
+# JSON 設定ファイルの構文チェック
+python -m json.tool config.json
+
+# YAML 設定ファイルの構文チェック
+python -c "import yaml; yaml.safe_load(open('config.yaml'))"
+```
+
+##### ドキュメントの整合性確認
+```bash
+# README の手順を実際に実行
+# インストール手順を一つずつ実行して確認
+
+# リンクの有効性確認（可能な場合）
+markdown-link-check README.md
+```
+
+### 5. 段階的リリース戦略
+
+#### Pre-release での検証
+```bash
+# 1. プレリリース版の作成
+git tag v1.x.x-beta.1
+git push origin v1.x.x-beta.1
+
+# 2. プレリリース版での検証
+brew install [tap]/[formula]@beta
+[comprehensive_tests]
+
+# 3. 問題なければ正式リリース
+git tag v1.x.x
+git push origin v1.x.x
+```
+
+#### ブランチ戦略
+```bash
+# 1. 機能ブランチでの開発
+git checkout -b feature/fix-pyobjc-issue
+
+# 2. 機能ブランチでの完全テスト
+[all_verification_steps]
+
+# 3. main ブランチへのマージ
+git checkout main
+git merge feature/fix-pyobjc-issue
+
+# 4. main ブランチでの最終確認
+[final_verification_steps]
+
+# 5. リリース
+git tag v1.x.x
+```
+
+### 6. 自動化による品質保証
+
+#### Pre-commit フックの設定
+```bash
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: local-tests
+        name: Local Integration Tests
+        entry: ./scripts/pre-commit-tests.sh
+        language: script
+        pass_filenames: false
+```
+
+#### CI/CD での段階的検証
+```yaml
+# GitHub Actions での多段階テスト
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - name: Unit Tests
+      - name: Integration Tests
+      - name: Homebrew Formula Test
+      - name: End-to-End Test
+  
+  pre-release:
+    needs: test
+    if: contains(github.ref, 'beta')
+    steps:
+      - name: Create Pre-release
+  
+  release:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Create Release
+```
+
+### 7. 問題発生時の迅速対応メカニズム
+
+#### ロールバック戦略
+```bash
+# 1. 問題のあるリリースの特定
+git log --oneline
+
+# 2. 前のバージョンへのロールバック
+git revert [problematic_commit]
+git tag v1.x.x-hotfix.1
+
+# 3. Homebrew Formula の緊急修正
+# Formula を前のバージョンに戻す
+```
+
+#### ホットフィックス手順
+```bash
+# 1. ホットフィックスブランチの作成
+git checkout -b hotfix/v1.x.x-fix
+
+# 2. 最小限の修正
+[minimal_fix]
+
+# 3. 緊急テスト
+[critical_tests_only]
+
+# 4. 緊急リリース
+git tag v1.x.x-hotfix.1
+```
+
+### 8. 検証チェックリスト
+
+#### コミット前必須チェック項目
+- [ ] ローカルでの基本機能テスト完了
+- [ ] 依存関係の完全性確認完了
+- [ ] 設定ファイルの構文チェック完了
+- [ ] ドキュメントの整合性確認完了
+- [ ] 重要な使用ケースのテスト完了
+
+#### リリース前必須チェック項目
+- [ ] クリーン環境でのインストールテスト完了
+- [ ] 全機能の動作確認完了
+- [ ] アンインストールテスト完了
+- [ ] ドキュメントの手順確認完了
+- [ ] GitHub Actions の動作確認完了
+
+#### 緊急時対応チェック項目
+- [ ] 問題の影響範囲特定完了
+- [ ] ロールバック手順確認完了
+- [ ] ユーザーへの通知準備完了
+- [ ] 修正版のテスト完了
+
+### 9. 継続的改善
+
+#### 問題パターンの記録と対策
+```markdown
+## 品質問題記録
+
+### 問題: PyObjC 依存関係不足
+- **発生日**: 2025-12-06
+- **原因**: Homebrew Formula にリソース未記載
+- **対策**: Formula 作成時の依存関係チェックリスト追加
+- **予防策**: ローカル Homebrew インストールテストの必須化
+
+### 問題: GitHub Actions での自動削除
+- **発生日**: 2025-12-06
+- **原因**: ワークフローテンプレートの不備
+- **対策**: ワークフローファイルの構文チェック追加
+- **予防策**: GitHub Actions のローカル実行テスト導入
+```
+
 ## 品質保証
 - CFN Lintでexit code 0必須
 - テンプレート構造の統一
 - 命名規則の遵守
-- **CloudFormation Template Guidelines完全準拠**
+- **AWS CloudFormation Guidelines完全準拠**
+- **実装変更時の仕様書・ドキュメント整合性確認必須**
+- **コミット前品質保証メカニズム必須実行**
