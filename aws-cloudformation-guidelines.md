@@ -7,6 +7,59 @@ fileMatchPattern: '*.yaml'
 
 このドキュメントは、aws-cloudformation-templates プロジェクトにおける CloudFormation YAML テンプレートの包括的な標準形式を定義します。全てのサービステンプレート、ファイル構成、命名規則の一貫性を維持するための完全なリファレンスとして機能します。
 
+## テンプレート作成前の必須手順
+
+### MCP によるドキュメント確認（必須）
+
+**CloudFormation/SAM テンプレートを作成・修正する際は、事前学習の知識に頼らず、必ず MCP で AWS ドキュメントを確認する**
+
+詳細な原則は `aws-architecture.md` の「情報収集・調査の原則」を参照してください。
+
+#### 必須確認項目
+
+1. **リソーススキーマ情報**: `get_resource_schema_information` でリソースの正確なプロパティを確認
+2. **最新の設定オプション**: 各 AWS サービスの最新機能と設定項目を確認
+3. **プロパティの制約**: 必須プロパティ、値の範囲、形式制限を確認
+4. **ベストプラクティス**: セキュリティ、パフォーマンス、コスト最適化の観点
+
+#### 対象リソース
+
+CloudFormation/SAM テンプレートで定義する全ての AWS と SAM リソース
+
+例：AWS::S3::Bucket、AWS::Lambda::Function、AWS::IAM::Role、AWS::SNS::Topic、AWS::SecretsManager::Secret、AWS::Serverless::Function、AWS::Serverless::Api 等
+
+#### 実装手順
+
+1. **リソース仕様確認**: MCP でリソーススキーマを確認
+2. **プロパティ選択**: 要件に適したプロパティを選択
+3. **設定値決定**: 制約条件を満たす設定値を決定
+4. **実装**: 本ガイドライン準拠でテンプレート作成
+5. **検証**: CFN Lint + SAM validate で検証
+
+#### MCP 活用例
+
+```bash
+# リソース作成前の仕様確認
+get_resource_schema_information(resource_type="AWS::SecretsManager::Secret")
+
+# 既存リソースの設定確認
+get_resource(resource_type="AWS::S3::Bucket", identifier="bucket-name")
+
+# リソース一覧確認
+list_resources(resource_type="AWS::SNS::Topic")
+```
+
+### ランタイム選択時の MCP 確認（必須）
+
+**SAM/Lambda テンプレート作成時は、MCP で AWS ドキュメントを確認して最新のサポートされているランタイムを選択する**
+
+#### ランタイム選択ルール
+
+1. **最新優先**: 技術的な障壁がない限り、最新のサポートされているランタイムを使用
+2. **非推奨期限確認**: 非推奨まで12ヶ月以上あるランタイムを選択
+3. **MCP確認必須**: テンプレート作成前に MCP で AWS Lambda runtimes ドキュメントを確認
+4. **長期サポート重視**: 同等の機能であれば、より長期サポートが予定されているランタイムを選択
+
 ## テンプレート構造と順序
 
 ### 必須セクション順序
@@ -62,12 +115,7 @@ Globals:
 ```
 
 #### ランタイム選択ガイドライン
-**ランタイム選択の詳細は `aws-architecture.md` の「ランタイム選択の原則」セクションを参照してください。**
-
-要点：
-- 常に最新のサポートされているランタイムを使用
-- MCP で AWS Lambda ドキュメントを確認
-- 非推奨まで12ヶ月以上あるランタイムを選択
+**ランタイム選択の詳細は本ガイドラインの「テンプレート作成前の必須手順」セクションを参照してください。**
 
 ## Metadata セクション標準
 
@@ -794,12 +842,13 @@ SNSForAlert:
 
 詳細は `aws-architecture.md` を参照。
 
-## ネストされたスタックアーキテクチャ
+## ネストされたスタック実装
 
-### 基本原則
-**CloudFormation テンプレートの場合は `AWS::CloudFormation::Stack`、SAM テンプレートの場合は `AWS::Serverless::Application` を使用する**
+**設計原則は `aws-architecture.md` の「ネストされたスタックの設計原則」を参照してください。**
 
-### SAM テンプレートでのネストされたスタック
+### 基本実装パターン
+
+#### SAM テンプレートでのネストされたスタック
 ```yaml
 # 親スタック内で子スタックを呼び出す
 ChildStack:
@@ -814,7 +863,7 @@ ChildStack:
       environment: !Ref Environment
 ```
 
-### CloudFormation テンプレートでのネストされたスタック
+#### CloudFormation テンプレートでのネストされたスタック
 ```yaml
 # 親スタック内で子スタックを呼び出す
 ChildStack:
@@ -830,7 +879,7 @@ ChildStack:
         Value: !Ref Environment
 ```
 
-### 親子スタック間の連携方法
+### 親子スタック間の値渡し実装
 
 #### パラメータ経由での値渡し（推奨）
 ```yaml
@@ -840,6 +889,7 @@ ChildStack:
   Properties:
     Location: ./child-stack.yaml
     Parameters:
+      LogicalName: !Ref LogicalName
       SharedResourceArn: !GetAtt SharedResource.Arn
 
 # 子スタック - パラメータで受け取り
@@ -850,55 +900,64 @@ Parameters:
   SharedResourceArn:
     Type: String
     Description: ARN of shared resource from parent stack
+
+Resources:
+  ChildResource:
+    Type: AWS::SomeService::Resource
+    Properties:
+      SharedResourceArn: !Ref SharedResourceArn
 ```
 
-#### Export/Import（非推奨）
+#### Export/Import（非推奨 - 使用しない）
 ```yaml
-# 親スタック - 出力値の定義
+# この方法は使用しない
+# 理由: 複雑性増加、依存関係の不明確化、デバッグ困難
+
+# 親スタック
 Outputs:
   SharedResourceArn:
-    Description: ARN of shared resource
     Value: !GetAtt SharedResource.Arn
     Export:
       Name: !Sub ${AWS::StackName}-SharedResourceArn
 
-# 子スタック - 出力値の参照
+# 子スタック
 Resources:
   ChildResource:
-    Type: AWS::SomeService::Resource
     Properties:
       SharedResourceArn:
         Fn::ImportValue: !Sub ${LogicalName}-SharedResourceArn
 ```
 
-### 設計ガイドライン
+### 命名規則
 
-#### 使い分けの基準
-- **AWS::Serverless::Application**: SAM テンプレート、ローカルファイル参照
-- **AWS::CloudFormation::Stack**: CloudFormation テンプレート、S3 URL 参照
-
-#### 依存関係管理
-1. **親スタック → 子スタック**: 子スタックは親スタックのリソースを参照可能
-2. **子スタック間**: 直接的な依存関係は避ける（独立性確保）
-3. **削除順序**: 子スタック → 親スタックの順で削除
-
-#### 命名規則
-- **子スタックファイル名**: `{機能名}.yaml` または `{モジュール名}.yaml`
-  - ✅ 良い例: `google-analytics.yaml`, `cloudfront-logs.yaml`, `s3-access-logs.yaml`
-  - ❌ 悪い例: `google-analytics-stack.yaml`, `cloudfront-logs-stack.yaml`
+#### 子スタックファイル名
+- **形式**: `{機能名}.yaml` または `{モジュール名}.yaml`
+- **良い例**: 
+  - `google-analytics.yaml`
+  - `cloudfront-logs.yaml`
+  - `s3-access-logs.yaml`
+- **悪い例**: 
+  - `google-analytics-stack.yaml`
+  - `cloudfront-logs-stack.yaml`
 - **理由**: シンプルで機能が明確、冗長な `-stack` サフィックスを避ける
 
 #### パラメータ命名規則
-- **親スタック識別子**: `LogicalName` パラメータを使用（`ParentStackName` ではない）
+- **親スタック識別子**: `LogicalName` パラメータを使用
   - ✅ 良い例: `LogicalName`
   - ❌ 悪い例: `ParentStackName`, `ParentStack`, `StackName`
 - **理由**: 既存のテンプレートとの一貫性、リソース命名の論理名として使用
-- **用途**: パラメータ経由での値渡し、リソース名の生成に使用
+- **用途**: リソース名の生成、クロススタック参照の識別子
 
-#### 親子スタック間の値渡し方法
-- **パラメータ経由を優先**: `Fn::ImportValue` は使用せず、パラメータで全ての値を親スタックから子スタックに渡す
-- **理由**: 複雑性回避、依存関係の明確化、デバッグの容易さ
-- **実装方法**: 親スタックで子スタック呼び出し時に必要な全ての値を Parameters で渡す
+### 実装時の注意点
+
+#### 値の受け渡し
+- **必須**: パラメータ経由で全ての値を親スタックから子スタックに渡す
+- **禁止**: `Fn::ImportValue` の使用は避ける
+- **理由**: 依存関係の明確化、デバッグの容易さ
+
+#### ファイル配置
+- **SAM**: ローカルファイルパス（`./child-stack.yaml`）
+- **CloudFormation**: S3 URL（`https://s3.amazonaws.com/bucket/child-stack.yaml`）
 
 #### ベストプラクティス
 - **モジュール化**: 機能別・データソース別に子スタックを分離
