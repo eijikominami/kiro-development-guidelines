@@ -160,18 +160,6 @@ CI/CD パイプライン
 - **ドキュメントのみ変更**: コードに影響しない変更
 - **WIP コミット**: 作業中の一時保存（後で修正前提）
 
-##### スキップ方法
-```bash
-# 全フックをスキップ
-git commit --no-verify -m "WIP: work in progress"
-
-# 特定のフックのみスキップ
-SKIP=flake8 git commit -m "Fix formatting, flake8 errors to be addressed"
-
-# 複数のフックをスキップ
-SKIP=flake8,mypy git commit -m "Quick fix"
-```
-
 ##### スキップ時の注意事項
 - **CI で必ず確認**: スキップしても CI でチェックされることを確認
 - **後で修正**: WIP コミットは後で必ず修正してから PR 作成
