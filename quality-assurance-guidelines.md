@@ -249,37 +249,15 @@ Docker 等を使用したクリーンな環境でのテスト
 ## 段階的リリース戦略
 
 ### Pre-release での検証
-```bash
-# 1. プレリリース版の作成
-git tag v1.x.x-beta.1
-git push origin v1.x.x-beta.1
+プレリリース版を作成して検証を行い、問題なければ正式リリースを実施する。
 
-# 2. プレリリース版での検証
-[comprehensive_tests]
+### リリースプロセス
+1. 機能ブランチでの完全テスト
+2. main ブランチへのマージ
+3. main ブランチでの最終確認
+4. バージョンタグの作成とリリース
 
-# 3. 問題なければ正式リリース
-git tag v1.x.x
-git push origin v1.x.x
-```
-
-### ブランチ戦略
-```bash
-# 1. 機能ブランチでの開発
-git checkout -b feature/[feature-name]
-
-# 2. 機能ブランチでの完全テスト
-[all_verification_steps]
-
-# 3. main ブランチへのマージ
-git checkout main
-git merge feature/[feature-name]
-
-# 4. main ブランチでの最終確認
-[final_verification_steps]
-
-# 5. リリース
-git tag v1.x.x
-```
+詳細なブランチ戦略は `development-guidelines.md` を参照。
 
 ## 自動化による品質保証
 
