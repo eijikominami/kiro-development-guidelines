@@ -329,6 +329,9 @@ RoleName: !Sub ${LogicalName}-stepfunctions-execution-role-${AWS::Region}
 - LogicalName パラメータは3-50文字である必要があります（AllowedPattern で強制）
 - これにより、最終的なロール名が64文字制限内に収まることを保証
 
+#### その他のリソース命名例
+
+```yaml
 # Security Groups - Use SecurityGroupFor[Purpose] format
 SecurityGroupForRDS:       # For RDS database access
 SecurityGroupForELB:       # For load balancer
@@ -348,6 +351,7 @@ LambdaFunctionForETL:              # For ETL operations
 AlarmForCPUUtilization:    # For CPU monitoring
 AlarmForDiskSpace:         # For disk space monitoring
 AlarmForLambdaErrors:      # For Lambda error monitor
+```
 
 ### リソースプロパティ標準
 
@@ -370,6 +374,154 @@ Tags:
 4. **DependsOn**（該当する場合）
 5. **Type**
 6. **Properties**（AWS ドキュメントに合わせてサブプロパティをアルファベット順に）
+
+## Outputs セクション標準
+
+### Output 定義ルール
+Outputs セクションは、一貫性と保守性のために以下の包括的なルールに従う必要があります：
+
+#### 必須 Outputs（含める必要がある）
+1. **クロススタック参照リソース**: 親または他のテンプレートによって参照される全てのリソース
+
+#### オプション Outputs（含めても良い）
+1. **主要サービスリソース**: テンプレートの目的を定義する主要リソース
+2. **IAM ロールとポリシー**: セキュリティとアクセス管理のための IAM リソース（外部参照が必要な場合のみ）
+3. **リソース識別子**: 統合に必要な ID、ARN、名前
+4. **デバッグリソース**: トラブルシューティングに役立つが機能には不要
+5. **便利な出力**: オペレーターにとって便利な情報
+6. **監視リソース**: 可観測性のための CloudWatch リソース
+
+#### Output 命名規則
+- **リソース識別子**: リソース名 + タイプサフィックスを使用
+  - 例: `VPCId`, `SubnetIds`, `SecurityGroupId`
+- **ARN**: リソース名 + `Arn` サフィックスを使用
+  - 例: `IAMRoleForLambdaArn`, `S3BucketArn`, `SecretsManagerArn`
+- **名前**: リソース名 + `Name` サフィックスを使用
+  - 例: `LambdaFunctionName`, `GlueConnectionName`
+- **URL とエンドポイント**: 説明的な名前を使用
+  - 例: `APIGatewayURL`, `CloudFrontDistributionURL`
+
+#### Output 構造標準
+```yaml
+Outputs:
+  # Resource IDs (alphabetical order)
+  ResourceId:
+    Description: Clear description of the resource identifier
+    Value: !Ref ResourceName
+    
+  # Resource ARNs (alphabetical order)
+  ResourceArn:
+    Description: ARN of the [resource type] for [purpose]
+    Value: !GetAtt ResourceName.Arn
+    
+  # Resource Names (alphabetical order)
+  ResourceName:
+    Description: Name of the [resource type] for [purpose]
+    Value: !Ref ResourceName
+    
+  # Conditional outputs (if applicable)
+  ConditionalResource:
+    Condition: CreateResource
+    Description: Description for conditional resource
+    Value: !Ref ConditionalResourceName
+```
+
+#### Output 順序ルール
+Outputs セクション内では、以下の順序で出力を並べます：
+1. **タイプ優先順位**: IDs → ARNs → Names → URLs → その他
+2. **タイプ内でアルファベット順**: 各タイプグループ内でアルファベット順にソート
+3. **条件付き出力**: 最後に配置し、同様にアルファベット順にソート
+
+#### Output 説明標準
+- **形式**: リソースタイプで始まり、その後に目的を記述
+- **例**:
+  - `Description: ID of the VPC for the analytics environment`
+  - `Description: ARN of the IAM role for AWS Glue Google Analytics connector`
+  - `Description: Name of the Google Analytics 4 ETL job`
+  - `Description: URL of the CloudFront distribution for static content`
+
+#### クロススタック参照要件
+ネストされたスタックとクロススタック参照の場合：
+
+##### 子テンプレート要件
+- **親テンプレートによって参照される全てのリソースを出力する必要があります**
+- **主要サービスリソースを出力しても良い**（外部参照が必要な場合のみ）
+- **IAM ロールとポリシーを出力しても良い**（外部参照が必要な場合のみ）
+- **デバッグ用のリソース識別子を出力しても良い**
+
+##### 親テンプレート要件
+- **他のスタックが参照する可能性のあるリソースを出力する必要があります**
+- **子スタックからの集約情報を出力すべきです**
+- **オペレーター向けの便利な情報を出力しても良い**
+
+#### テンプレートタイプ固有のルール
+
+##### ネストされたスタックテンプレート（子テンプレート）
+```yaml
+Outputs:
+  # Cross-referenced resources (MANDATORY)
+  CrossReferencedResourceArn:
+    Description: ARN of the resource referenced by parent template
+    Value: !GetAtt CrossReferencedResource.Arn
+    
+  # Primary service resources (OPTIONAL)
+  PrimaryServiceId:
+    Description: ID of the primary service resource
+    Value: !Ref PrimaryServiceResource
+    
+  # IAM resources (OPTIONAL - only if needed externally)
+  IAMRoleArn:
+    Description: ARN of the IAM role for [service]
+    Value: !GetAtt IAMRole.Arn
+    
+  # Supporting resources (OPTIONAL)
+  SupportingResourceName:
+    Description: Name of the supporting resource for debugging
+    Value: !Ref SupportingResource
+```
+
+##### メイン/親テンプレート
+```yaml
+Outputs:
+  # Aggregated outputs from child stacks (MANDATORY)
+  ChildStackOutput:
+    Description: Output from child stack for external reference
+    Value: !GetAtt ChildStack.Outputs.ResourceArn
+    
+  # Primary template resources (MANDATORY)
+  MainResourceId:
+    Description: ID of the main resource created by this template
+    Value: !Ref MainResource
+```
+
+##### スタンドアロンテンプレート
+```yaml
+Outputs:
+  # Integration points (OPTIONAL - only if needed for external reference)
+  IntegrationEndpoint:
+    Description: Endpoint for integration with other services
+    Value: !GetAtt Resource.Endpoint
+    
+  # Primary resources (OPTIONAL - only if needed for external reference)
+  PrimaryResourceId:
+    Description: ID of the primary resource
+    Value: !Ref PrimaryResource
+    
+  # IAM resources (OPTIONAL - only if needed for external reference)
+  IAMRoleArn:
+    Description: ARN of the IAM role
+    Value: !GetAtt IAMRole.Arn
+```
+
+### Output 検証チェックリスト
+- [ ] 全てのクロス参照リソースが出力されている（必須）
+- [ ] Output 名が命名規則に従っている
+- [ ] 説明が明確で一貫している
+- [ ] Outputs が正しく順序付けられている（タイプ優先順位、その後アルファベット順）
+- [ ] 条件付き出力が適切に条件付けられている
+- [ ] 未使用の出力がない（どこからも参照されていない出力）
+- [ ] 必要な出力のみが含まれている（出力の肥大化を避ける）
+- [ ] **cfn-lint が終了コード 0 で合格する（必須）**
 
 ## 文字列引用符標準
 
@@ -618,154 +770,6 @@ SNSForAlert:
 ```
 
 ✅ **上記の標準実装に示されているように AWS::Serverless::Application 形式を使用**。
-
-## Outputs セクション標準
-
-### Output 定義ルール
-Outputs セクションは、一貫性と保守性のために以下の包括的なルールに従う必要があります：
-
-#### 必須 Outputs（含める必要がある）
-1. **クロススタック参照リソース**: 親または他のテンプレートによって参照される全てのリソース
-
-#### オプション Outputs（含めても良い）
-1. **主要サービスリソース**: テンプレートの目的を定義する主要リソース
-2. **IAM ロールとポリシー**: セキュリティとアクセス管理のための IAM リソース（外部参照が必要な場合のみ）
-3. **リソース識別子**: 統合に必要な ID、ARN、名前
-4. **デバッグリソース**: トラブルシューティングに役立つが機能には不要
-5. **便利な出力**: オペレーターにとって便利な情報
-6. **監視リソース**: 可観測性のための CloudWatch リソース
-
-#### Output 命名規則
-- **リソース識別子**: リソース名 + タイプサフィックスを使用
-  - 例: `VPCId`, `SubnetIds`, `SecurityGroupId`
-- **ARN**: リソース名 + `Arn` サフィックスを使用
-  - 例: `IAMRoleForLambdaArn`, `S3BucketArn`, `SecretsManagerArn`
-- **名前**: リソース名 + `Name` サフィックスを使用
-  - 例: `LambdaFunctionName`, `GlueConnectionName`
-- **URL とエンドポイント**: 説明的な名前を使用
-  - 例: `APIGatewayURL`, `CloudFrontDistributionURL`
-
-#### Output 構造標準
-```yaml
-Outputs:
-  # Resource IDs (alphabetical order)
-  ResourceId:
-    Description: Clear description of the resource identifier
-    Value: !Ref ResourceName
-    
-  # Resource ARNs (alphabetical order)
-  ResourceArn:
-    Description: ARN of the [resource type] for [purpose]
-    Value: !GetAtt ResourceName.Arn
-    
-  # Resource Names (alphabetical order)
-  ResourceName:
-    Description: Name of the [resource type] for [purpose]
-    Value: !Ref ResourceName
-    
-  # Conditional outputs (if applicable)
-  ConditionalResource:
-    Condition: CreateResource
-    Description: Description for conditional resource
-    Value: !Ref ConditionalResourceName
-```
-
-#### Output 順序ルール
-Outputs セクション内では、以下の順序で出力を並べます：
-1. **タイプ優先順位**: IDs → ARNs → Names → URLs → その他
-2. **タイプ内でアルファベット順**: 各タイプグループ内でアルファベット順にソート
-3. **条件付き出力**: 最後に配置し、同様にアルファベット順にソート
-
-#### Output 説明標準
-- **形式**: リソースタイプで始まり、その後に目的を記述
-- **例**:
-  - `Description: ID of the VPC for the analytics environment`
-  - `Description: ARN of the IAM role for AWS Glue Google Analytics connector`
-  - `Description: Name of the Google Analytics 4 ETL job`
-  - `Description: URL of the CloudFront distribution for static content`
-
-#### クロススタック参照要件
-ネストされたスタックとクロススタック参照の場合：
-
-##### 子テンプレート要件
-- **親テンプレートによって参照される全てのリソースを出力する必要があります**
-- **主要サービスリソースを出力しても良い**（外部参照が必要な場合のみ）
-- **IAM ロールとポリシーを出力しても良い**（外部参照が必要な場合のみ）
-- **デバッグ用のリソース識別子を出力しても良い**
-
-##### 親テンプレート要件
-- **他のスタックが参照する可能性のあるリソースを出力する必要があります**
-- **子スタックからの集約情報を出力すべきです**
-- **オペレーター向けの便利な情報を出力しても良い**
-
-#### テンプレートタイプ固有のルール
-
-##### ネストされたスタックテンプレート（子テンプレート）
-```yaml
-Outputs:
-  # Cross-referenced resources (MANDATORY)
-  CrossReferencedResourceArn:
-    Description: ARN of the resource referenced by parent template
-    Value: !GetAtt CrossReferencedResource.Arn
-    
-  # Primary service resources (OPTIONAL)
-  PrimaryServiceId:
-    Description: ID of the primary service resource
-    Value: !Ref PrimaryServiceResource
-    
-  # IAM resources (OPTIONAL - only if needed externally)
-  IAMRoleArn:
-    Description: ARN of the IAM role for [service]
-    Value: !GetAtt IAMRole.Arn
-    
-  # Supporting resources (OPTIONAL)
-  SupportingResourceName:
-    Description: Name of the supporting resource for debugging
-    Value: !Ref SupportingResource
-```
-
-##### メイン/親テンプレート
-```yaml
-Outputs:
-  # Aggregated outputs from child stacks (MANDATORY)
-  ChildStackOutput:
-    Description: Output from child stack for external reference
-    Value: !GetAtt ChildStack.Outputs.ResourceArn
-    
-  # Primary template resources (MANDATORY)
-  MainResourceId:
-    Description: ID of the main resource created by this template
-    Value: !Ref MainResource
-```
-
-##### スタンドアロンテンプレート
-```yaml
-Outputs:
-  # Integration points (OPTIONAL - only if needed for external reference)
-  IntegrationEndpoint:
-    Description: Endpoint for integration with other services
-    Value: !GetAtt Resource.Endpoint
-    
-  # Primary resources (OPTIONAL - only if needed for external reference)
-  PrimaryResourceId:
-    Description: ID of the primary resource
-    Value: !Ref PrimaryResource
-    
-  # IAM resources (OPTIONAL - only if needed for external reference)
-  IAMRoleArn:
-    Description: ARN of the IAM role
-    Value: !GetAtt IAMRole.Arn
-```
-
-### Output 検証チェックリスト
-- [ ] 全てのクロス参照リソースが出力されている（必須）
-- [ ] Output 名が命名規則に従っている
-- [ ] 説明が明確で一貫している
-- [ ] Outputs が正しく順序付けられている（タイプ優先順位、その後アルファベット順）
-- [ ] 条件付き出力が適切に条件付けられている
-- [ ] 未使用の出力がない（どこからも参照されていない出力）
-- [ ] 必要な出力のみが含まれている（出力の肥大化を避ける）
-- [ ] **cfn-lint が終了コード 0 で合格する（必須）**
 
 ## SAM 固有のガイドライン
 
