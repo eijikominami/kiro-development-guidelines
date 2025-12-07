@@ -9,9 +9,9 @@
 
 ### 開発プロセス
 - **Infrastructure as Code**: CloudFormation/SAMテンプレートでインフラ管理
-- **CI/CD**: AWS CodePipeline等による自動デプロイ
+- **CI/CD**: AWS で作る場合は AWS CodePipeline、それ以外は GitHub Actions 等でも可
 - **監視・ログ**: CloudWatch、X-Rayによる可観測性確保
-- **ブランチ戦略**: 機能開発は feature ブランチで行い、main ブランチへの直接コミットは避ける
+- **ブランチ戦略**: 詳細は「ブランチ戦略（必須）」セクションを参照
 
 ## ブランチ戦略（必須）
 
@@ -28,10 +28,22 @@
 - **タグ**: リリース時にバージョンタグを付与
 
 #### 2. feature ブランチ
-- **命名規則**: `feature/<機能名>` または `fix/<修正内容>`
-- **用途**: 新機能開発、バグ修正、リファクタリング
+- **命名規則**: `feature/<機能名>`
+- **用途**: 新機能開発、リファクタリング
 - **作成元**: main ブランチから分岐
 - **マージ先**: main ブランチへマージ
+
+#### 3. fix ブランチ
+- **命名規則**: `fix/<修正内容>`
+- **用途**: バグ修正
+- **作成元**: main ブランチから分岐
+- **マージ先**: main ブランチへマージ
+
+#### 4. hotfix ブランチ
+- **命名規則**: `hotfix/<バージョン>-<修正内容>`
+- **用途**: 本番環境の緊急修正
+- **作成元**: main ブランチから分岐
+- **マージ先**: main ブランチへマージ後、即座にタグ作成
 
 ### ワークフロー
 
@@ -140,7 +152,7 @@ git push origin v1.3.0
 
 #### ❌ 悪い例
 ```bash
-# main ブランチで直接作業（今回のケース）
+# main ブランチで直接作業
 git checkout main
 # 変更作業...
 git add .
@@ -163,74 +175,71 @@ git merge feature/fix-something
 git push origin main
 ```
 
+### main ブランチ保護の重要性
+
+**絶対ルール**: main ブランチへの直接コミットは禁止
+
+#### main ブランチで作業してしまった場合の対処法
+
+もし誤って main ブランチで作業してしまった場合：
+
+```bash
+# 1. 現在の変更を確認
+git status
+
+# 2. まだコミットしていない場合
+git stash                              # 変更を一時保存
+git checkout -b feature/fix-something  # feature ブランチ作成
+git stash pop                          # 変更を復元
+git add .
+git commit -m "Fix something"
+
+# 3. すでにコミットしてしまった場合（まだプッシュしていない）
+git log --oneline -5                   # コミット履歴確認
+git branch feature/fix-something       # 現在位置で feature ブランチ作成
+git reset --hard HEAD~1                # main を1つ前に戻す
+git checkout feature/fix-something     # feature ブランチに移動
+
+# 4. すでにプッシュしてしまった場合
+# → 次回から必ず feature ブランチを使用
+# → 今回のコミットは履歴に残るが、以降は正しい手順を守る
+```
+
+#### 作業開始前の必須チェック
+
+```bash
+# 現在のブランチを確認
+git branch
+
+# main ブランチにいる場合は即座に feature ブランチを作成
+git checkout -b feature/your-feature-name
+```
+
 ### ブランチ管理のベストプラクティス
 
+#### 基本ルール
+1. **main ブランチでの直接作業禁止**: 必ず適切なブランチ（feature/fix/hotfix）を作成してから作業を開始
+2. **テスト完了後にマージ**: 全てのテストが成功してから main ブランチへマージ
+3. **リリース時のタグ作成**: main ブランチでバージョンタグを作成してリリース
+
+#### 日常的な運用
 1. **小さく頻繁にコミット**: 大きな変更を避け、小さな単位でコミット
 2. **明確なコミットメッセージ**: 何を変更したか、なぜ変更したかを明記
 3. **定期的なマージ**: feature ブランチが長期化しないよう、定期的に main へマージ
 4. **コンフリクトの早期解決**: main の変更を定期的に feature ブランチへマージ
 5. **ブランチの削除**: マージ後は不要な feature ブランチを削除
 
-### 今後の対応
-
-今回は main ブランチで直接作業してしまいましたが、今後は以下のように対応します：
-
-1. **新機能開発**: `feature/` ブランチを作成
-2. **バグ修正**: `fix/` ブランチを作成
-3. **緊急修正**: `hotfix/` ブランチを作成
-4. **テスト完了後**: main ブランチへマージ
-5. **リリース**: main ブランチでタグを作成
-
 ## 技術スタック
 
-### Core Technologies
-- **Infrastructure as Code**: AWS CloudFormation (YAML format)
-- **Serverless Framework**: AWS SAM (Serverless Application Model)
-- **Runtime**: Python 3.x for Lambda functions
-- **Configuration Management**: YAML configuration files
-- **Linting**: CFN Lint (.cfnlintrc configuration)
-- **Version Control**: Git with pre-commit hooks
+### コア技術
+- **Infrastructure as Code**: AWS CloudFormation/SAM（詳細は `aws-cloudformation-guidelines.md` 参照）
+- **ランタイム**: プロジェクトに応じて選択（Python、Node.js、Java、Go 等）
+- **設定管理**: YAML 設定ファイル
+- **バージョン管理**: Git と pre-commit フック
 
-### Build System
-- **SAM CLI**: For serverless application building and deployment
-- **Pre-commit**: Code quality and linting automation
-- **CFN Lint**: CloudFormation template validation
-
-## Common Commands
-
-### SAM Applications
-```bash
-# Build SAM application
-sam build
-
-# Deploy SAM application (check samconfig.toml first)
-sam deploy
-
-# Deploy with guided setup (only if no samconfig.toml)
-sam deploy --guided
-
-# Local testing
-sam local start-api
-sam local invoke
-```
-
-### CloudFormation
-```bash
-# Validate template
-aws cloudformation validate-template --template-body file://template.yaml
-
-# Deploy stack
-aws cloudformation deploy --template-file template.yaml --stack-name my-stack
-
-# Lint templates
-cfn-lint template.yaml
-```
-
-## Dependencies
-- AWS CLI configured with appropriate permissions
-- SAM CLI for serverless applications
-- Python 3.x and pip for Lambda dependencies
-- CFN Lint for template validation
+### ビルドシステム
+- **Pre-commit**: コード品質と Lint の自動化
+- **SAM CLI**: サーバーレスアプリケーションのビルドとデプロイ（詳細は `aws-cloudformation-guidelines.md` 参照）
 
 ## タスク実行時の必須プロセス
 
@@ -245,130 +254,12 @@ cfn-lint template.yaml
 - **ガイドライン準拠確認**: ガイドライン準拠が要求されている場合は準拠状況を確認
 
 ### CloudFormation/SAMテンプレート作成/更新時の必須手順
-1. **AWS CloudFormation Guidelines確認**: ステアリングファイルのaws-cloudformation-guidelines.mdを参照
-2. **必須セクション順序の遵守**: AWSTemplateFormatVersion → Transform → Description → Metadata → Parameters → Resources → Outputs
-3. **Description形式の適用**: `aws-cloudformation-templates/[service]/[template] [action] [service].`
-4. **Metadata構造の実装**: `AWS::CloudFormation::Interface`を使用
-5. **標準パラメータの追加**: AlarmLevel, SNSForAlertArn, SNSForDeploymentArn, TagKey, TagValue
-6. **CFN Lint検証**: exit code 0を確保
+**詳細は `aws-cloudformation-guidelines.md` を参照**
 
-## SAMデプロイメント原則
-
-### デプロイ前の必須確認手順（全プロジェクト共通）
-1. **プロジェクト固有の設計書確認**: デプロイ前に必ず該当プロジェクトの設計書（design.md）を確認する
-2. **設定ファイル管理方式の確認**: 設定ファイルの配置場所と管理方式を設計書で確認する
-   - プロジェクトディレクトリ内（標準的な配置）
-   - プロジェクトディレクトリ外（プライベートリポジトリ等）
-   - 機密情報分離の有無
-3. **設定ファイル取得**: 設計書の指示に従って必要な設定ファイルを取得・配置する
-4. **デプロイ手順の確認**: プロジェクト固有のデプロイ手順があるかを設計書で確認する
-
-### 必須デプロイ手順
-1. **sam build実行**: デプロイ前に必ず`sam build`を実行する
-2. **samconfig.tomlの存在確認**: プロジェクトディレクトリにsamconfig.tomlがあるかチェック
-3. **設定ファイルがある場合**: `sam deploy` を使用（--guidedは不要）
-4. **設定ファイルがない場合**: `sam deploy --guided` を使用して初回設定
-
-### CloudFormationスタック障害対応原則
-1. **スタック削除禁止**: UPDATE_FAILEDやUPDATE_ROLLBACK_FAILEDの場合でもスタックを削除しない
-2. **更新ロールバック続行**: `aws cloudformation continue-update-rollback`を使用してロールバックを続行
-3. **根本原因調査**: CloudWatch Logsでエラーの詳細を確認
-4. **問題修正後再デプロイ**: 原因を修正してから再度デプロイを実行
-
-### パラメータ設定ガイドライン
-
-#### 1. 新たなパラメータが必要な場合
-- **必ず実際の値を確認してから設定する**
-- 推測や仮定でテスト値を設定しない
-- 値が不明な場合は明確に質問する
-- ユーザーから値を取得するまでデプロイを実行しない
-
-#### 2. デプロイ方法の決定
-- `samconfig.toml`の存在を確認
-- 存在する場合：既存設定を活用し、不足パラメータのみ追加
-- 存在しない場合：`sam deploy --guided`を使用
-- パラメータ追加時は`--parameter-overrides`で指定
-
-#### 3. 機密情報の取り扱い
-- Client SecretなどはNoEcho: trueで保護
-- samconfig.tomlには機密情報を直接記載しない
-- デプロイ時の手動指定を推奨
-
-### デプロイコマンド例
-```bash
-# 1. 設計書確認（必須）
-# プロジェクトの .kiro/specs/[project-name]/design.md を確認
-
-# 2. 設定ファイル取得（設計書の指示に従う）
-# 例：プライベートリポジトリから取得する場合
-cp ../../../aws-cfn-conf-[account]/[project]/samconfig.toml .
-
-# 3. 必須：デプロイ前に必ずビルドを実行
-sam build
-
-# 4. デプロイ実行
-# 設定ファイルがある場合
-sam deploy
-
-# 新しいパラメータを追加する場合
-sam deploy --parameter-overrides \
-  NewParameter="USER_PROVIDED_VALUE"
-
-# 設定ファイルがない場合のみ
-sam deploy --guided
-```
-
-## CloudFormationスタック障害対応
-
-### UPDATE_ROLLBACK_FAILED状態の対処法
-
-**重要**: スタックがUPDATE_ROLLBACK_FAILED状態になった場合、スタックを削除せずに更新ロールバックを続行する
-
-#### 対処手順
-1. **CloudWatch Logsで根本原因を調査**
-   ```bash
-   # Lambda関数のログを確認
-   AWS_PAGER="" aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/[function-name]"
-   
-   # CloudFormationイベントを確認
-   AWS_PAGER="" aws cloudformation describe-stack-events --stack-name [stack-name]
-   ```
-
-2. **更新ロールバックの続行**
-   ```bash
-   # 更新ロールバックを続行（スタックを削除しない）
-   aws cloudformation continue-update-rollback --stack-name [stack-name]
-   ```
-
-3. **問題修正後の再デプロイ**
-   ```bash
-   # SAMの場合：必須：修正後は必ずビルドしてからデプロイ
-   sam build
-   sam deploy
-   
-   # CloudFormationの場合：直接デプロイ
-   aws cloudformation deploy --template-file template.yaml --stack-name [stack-name]
-   ```
-
-#### 避けるべき行動
-- ❌ スタックの削除
-- ❌ 原因調査なしでの再作成
-- ❌ sam buildを忘れてのデプロイ
-- ❌ 設計書を確認せずにデプロイ
-- ❌ 一般的なパターンを前提とした作業
-
-#### 正しい行動
-- ✅ デプロイ前の設計書確認
-- ✅ プロジェクト固有の設定ファイル管理方式の確認
-- ✅ CloudWatch Logsでの根本原因調査
-- ✅ continue-update-rollbackでの復旧
-- ✅ 問題修正後の再デプロイ（SAM: sam build → sam deploy、CloudFormation: aws cloudformation deploy）
-
-### パラメータ値確認の必須フロー
-1. **新しいパラメータの検出**: テンプレートに新しいパラメータが追加された場合
-2. **ユーザーへの確認**: 「[パラメータ名]の値を教えてください」と明確に質問
-3. **値の取得待ち**: ユーザーから実際の値を取得するまで待機
-4. **デプロイ実行**: 実際の値を使用してデプロイを実行
+1. **AWS CloudFormation Guidelines確認**: `aws-cloudformation-guidelines.md` を参照
+2. **MCP でAWSドキュメント確認**: リソーススキーマ情報を確認（`aws-architecture.md` 参照）
+3. **テンプレート構造遵守**: 必須セクション順序、命名規則、標準パラメータ
+4. **CFN Lint検証**: exit code 0を確保（必須）
 
 ## 実装変更時の仕様書・ドキュメント整合性確認（必須）
 
@@ -403,9 +294,19 @@ sam deploy --guided
 - **Homebrew Formula**: 依存関係や設定の変更を反映
 - **Docker設定**: コンテナ設定やビルドプロセスへの影響を確認
 
-#### 4. 確認チェックリスト
+#### 4. 更新作業の実行順序と確認（厳守）
 
-##### 実装変更時の必須チェック項目（実装直後に実行）
+##### 実行順序
+1. **コード実装**: 機能の実装・変更
+2. **README.md の即時更新**: 実装変更の直後に必ず更新（最優先・必須）
+3. **仕様書の更新**: requirements.md → design.md → tasks.md の順で更新
+4. **その他ドキュメントの更新**: CHANGELOG.md → その他ドキュメント
+5. **外部システムの更新**: GitHub Actions → Homebrew Formula → その他設定
+6. **整合性の最終確認**: 全体を通して矛盾がないか確認
+
+**重要**: README.md の更新は「後でまとめて」ではなく、「実装変更の直後に即座に」行う
+
+##### 実装変更時の必須チェック項目
 - [ ] **README.md を即座に更新**（最優先・必須）
 - [ ] 要件定義書の受け入れ基準との整合性を確認
 - [ ] 設計書のアーキテクチャ図・設計方針との整合性を確認
@@ -415,27 +316,17 @@ sam deploy --guided
 - [ ] 依存関係の変更をパッケージ管理ファイルに反映
 
 ##### README.md 更新が必須となる変更パターン
-- **UI/メニュー変更**: メニュー項目の追加・削除・変更 → README.md のメニュー構成図を更新
-- **機能追加**: 新機能の実装 → README.md に使用方法を追加
-- **機能削除**: 機能の削除 → README.md から該当機能の記載を削除
-- **コマンドオプション変更**: オプションの追加・削除・変更 → README.md の使用例を更新
+- **UI/メニュー変更**: メニュー項目の追加・削除・変更 → メニュー構成図を更新
+- **機能追加**: 新機能の実装 → 使用方法を追加
+- **機能削除**: 機能の削除 → 該当機能の記載を削除
+- **コマンドオプション変更**: オプションの追加・削除・変更 → 使用例を更新
 - **設定ファイル形式の変更**: 例、サンプル、ドキュメントをすべて更新
 - **依存関係の追加・削除**: requirements.txt、Formula、インストール手順を更新
 - **デフォルト動作の変更**: 要件定義、設計書、ユーザーガイドを確認・更新
 - **エラーメッセージの変更**: トラブルシューティングガイドを更新
-- **通知機能の変更**: 通知の追加・削除・変更 → README.md の機能説明を更新
+- **通知機能の変更**: 通知の追加・削除・変更 → 機能説明を更新
 
-#### 5. 更新作業の実行順序（厳守）
-1. **コード実装**: 機能の実装・変更
-2. **README.md の即時更新**: 実装変更の直後に必ず更新（最優先）
-3. **仕様書の更新**: requirements.md → design.md → tasks.md の順で更新
-4. **その他ドキュメントの更新**: CHANGELOG.md → その他ドキュメント
-5. **外部システムの更新**: GitHub Actions → Homebrew Formula → その他設定
-6. **整合性の最終確認**: 全体を通して矛盾がないか確認
-
-**重要**: README.md の更新は「後でまとめて」ではなく、「実装変更の直後に即座に」行う
-
-#### 6. 更新漏れ防止のための原則
+#### 5. 更新漏れ防止のための原則
 - **変更の影響範囲を事前に特定**: 変更前に影響を受ける可能性のあるファイルをリストアップ
 - **段階的な更新**: 一度にすべてを変更せず、段階的に更新して整合性を確認
 - **レビューの実施**: 可能であれば第三者による整合性レビューを実施
@@ -469,665 +360,150 @@ sam deploy --guided
 - display-layout-manager/README.md (常駐機能セクション)
 ```
 
-## コミット前品質保証メカニズム（必須）
-
-### コミット前の必須検証プロセス
-
-**重要**: コミット・プッシュ前に以下の検証を必ず実行し、問題を事前に発見・修正する
-
-#### 1. ローカル統合テスト（必須）
-
-##### Python プロジェクトの場合
-```bash
-# 1. import文の整理（必須）
-python3 -m isort --profile black src/ tests/
-
-# 2. コードフォーマット（必須）
-python3 -m black src/ tests/
-# または特定のディレクトリのみ
-python3 -m black [target_directory]
-
-# 3. フォーマットチェック（確認用）
-python3 -m isort --check-only --profile black src/ tests/
-python3 -m black --check src/ tests/
-
-# 4. 依存関係の確認
-pip install -e .
-python -c "import [main_module]; print('✓ Import successful')"
-
-# 5. 基本機能テスト
-[main_command] --version
-[main_command] --help
-[main_command] --run-tests
-
-# 6. 重要機能の動作確認
-[main_command] [key_functionality]
-```
-
-##### Homebrew Formula の場合
-```bash
-# 1. Formula 構文チェック
-brew audit --strict [formula_name]
-
-# 2. ローカルビルドテスト
-brew install --build-from-source [formula_name]
-
-# 3. インストール後テスト
-[installed_command] --version
-[installed_command] [basic_test]
-
-# 4. アンインストールテスト
-brew uninstall [formula_name]
-```
-
-#### 2. 環境別テスト（推奨）
-
-##### 仮想環境でのテスト
-```bash
-# Python 仮想環境でのクリーンテスト
-python -m venv test_env
-source test_env/bin/activate
-pip install .
-[test_commands]
-deactivate
-rm -rf test_env
-```
-
-##### Docker でのテスト（可能な場合）
-```bash
-# クリーンな macOS 環境でのテスト
-docker run --rm -v $(pwd):/workspace macos-test:latest \
-  /bin/bash -c "cd /workspace && [test_commands]"
-```
-
-#### 3. 依存関係検証（必須）
-
-##### 依存関係の完全性確認
-```bash
-# Python: requirements.txt と pyproject.toml の整合性
-pip-compile --dry-run pyproject.toml
-pip check
-
-# Homebrew: リソースの存在確認
-curl -I [resource_url]  # 各リソース URL の存在確認
-```
-
-##### 外部サービス依存の確認
-```bash
-# GitHub Actions ワークフローの構文チェック
-act --dry-run  # GitHub Actions のローカル実行ツール
-
-# または GitHub CLI での確認
-gh workflow view [workflow_name]
-```
-
-#### 4. 設定ファイル・ドキュメント検証（必須）
-
-##### 設定ファイルの妥当性確認
-```bash
-# JSON 設定ファイルの構文チェック
-python -m json.tool config.json
-
-# YAML 設定ファイルの構文チェック
-python -c "import yaml; yaml.safe_load(open('config.yaml'))"
-```
-
-##### ドキュメントの整合性確認
-```bash
-# README の手順を実際に実行
-# インストール手順を一つずつ実行して確認
-
-# リンクの有効性確認（可能な場合）
-markdown-link-check README.md
-```
-
-### 5. 段階的リリース戦略
-
-#### Pre-release での検証
-```bash
-# 1. プレリリース版の作成
-git tag v1.x.x-beta.1
-git push origin v1.x.x-beta.1
-
-# 2. プレリリース版での検証
-brew install [tap]/[formula]@beta
-[comprehensive_tests]
-
-# 3. 問題なければ正式リリース
-git tag v1.x.x
-git push origin v1.x.x
-```
-
-#### ブランチ戦略
-```bash
-# 1. 機能ブランチでの開発
-git checkout -b feature/fix-pyobjc-issue
-
-# 2. 機能ブランチでの完全テスト
-[all_verification_steps]
-
-# 3. main ブランチへのマージ
-git checkout main
-git merge feature/fix-pyobjc-issue
-
-# 4. main ブランチでの最終確認
-[final_verification_steps]
-
-# 5. リリース
-git tag v1.x.x
-```
-
-### 6. 自動化による品質保証
-
-#### Pre-commit フックの設定
-
-##### Python プロジェクト向け設定例
-```yaml
-# .pre-commit-config.yaml
-repos:
-  # Black フォーマッター
-  - repo: https://github.com/psf/black
-    rev: 23.12.1
-    hooks:
-      - id: black
-        language_version: python3
-        args: [--line-length=88]
-  
-  # isort（import文の整理）
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        args: [--profile=black]
-  
-  # flake8（Lintチェック）
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
-    hooks:
-      - id: flake8
-        args: [--max-line-length=88, --extend-ignore=E203]
-  
-  # ローカルテスト
-  - repo: local
-    hooks:
-      - id: local-tests
-        name: Local Integration Tests
-        entry: ./scripts/pre-commit-tests.sh
-        language: script
-        pass_filenames: false
-```
-
-##### Pre-commit のインストールと有効化
-```bash
-# pre-commit のインストール
-pip install pre-commit
-
-# プロジェクトに pre-commit フックを設定
-pre-commit install
-
-# 全ファイルに対して手動実行（初回）
-pre-commit run --all-files
-
-# 以降、git commit 時に自動実行される
-```
-
-#### CI/CD での段階的検証
-```yaml
-# GitHub Actions での多段階テスト
-jobs:
-  test:
-    runs-on: macos-latest
-    steps:
-      - name: Unit Tests
-      - name: Integration Tests
-      - name: Homebrew Formula Test
-      - name: End-to-End Test
-  
-  pre-release:
-    needs: test
-    if: contains(github.ref, 'beta')
-    steps:
-      - name: Create Pre-release
-  
-  release:
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: Create Release
-```
-
-### 7. 問題発生時の迅速対応メカニズム
-
-#### ロールバック戦略
-```bash
-# 1. 問題のあるリリースの特定
-git log --oneline
-
-# 2. 前のバージョンへのロールバック
-git revert [problematic_commit]
-git tag v1.x.x-hotfix.1
-
-# 3. Homebrew Formula の緊急修正
-# Formula を前のバージョンに戻す
-```
-
-#### ホットフィックス手順
-```bash
-# 1. ホットフィックスブランチの作成
-git checkout -b hotfix/v1.x.x-fix
-
-# 2. 最小限の修正
-[minimal_fix]
-
-# 3. 緊急テスト
-[critical_tests_only]
-
-# 4. 緊急リリース
-git tag v1.x.x-hotfix.1
-```
-
-### 8. 検証チェックリスト
-
-#### コミット前必須チェック項目
-- [ ] **import文の整理実行完了**（Python: isort）
-- [ ] **コードフォーマット実行完了**（Python: black、JavaScript: prettier等）
-- [ ] ローカルでの基本機能テスト完了
-- [ ] 依存関係の完全性確認完了
-- [ ] 設定ファイルの構文チェック完了
-- [ ] ドキュメントの整合性確認完了
-- [ ] 重要な使用ケースのテスト完了
-
-#### リリース前必須チェック項目
-- [ ] クリーン環境でのインストールテスト完了
-- [ ] 全機能の動作確認完了
-- [ ] アンインストールテスト完了
-- [ ] ドキュメントの手順確認完了
-- [ ] GitHub Actions の動作確認完了
-
-#### 緊急時対応チェック項目
-- [ ] 問題の影響範囲特定完了
-- [ ] ロールバック手順確認完了
-- [ ] ユーザーへの通知準備完了
-- [ ] 修正版のテスト完了
-
-### 9. 継続的改善
-
-#### 問題パターンの記録と対策
-```markdown
-## 品質問題記録
-
-### 問題: PyObjC 依存関係不足
-- **発生日**: 2025-12-06
-- **原因**: Homebrew Formula にリソース未記載
-- **対策**: Formula 作成時の依存関係チェックリスト追加
-- **予防策**: ローカル Homebrew インストールテストの必須化
-
-### 問題: GitHub Actions での自動削除
-- **発生日**: 2025-12-06
-- **原因**: ワークフローテンプレートの不備
-- **対策**: ワークフローファイルの構文チェック追加
-- **予防策**: GitHub Actions のローカル実行テスト導入
-
-### 問題: Black フォーマッターエラー
-- **発生日**: 2025-12-06
-- **原因**: コミット前にコードフォーマットを実行していなかった
-- **対策**: コミット前に `python3 -m black src/ tests/` を実行
-- **予防策**: Pre-commit フックで Black を自動実行する設定を追加
-
-### 問題: isort import文整理エラー
-- **発生日**: 2025-12-06
-- **原因**: コミット前に import 文の整理を実行していなかった
-- **対策**: コミット前に `python3 -m isort --profile black src/ tests/` を実行
-- **予防策**: Pre-commit フックで isort を自動実行する設定を追加（Black互換のため --profile black を使用）
-```
-
-## テスト戦略とベストプラクティス（必須）
-
-### テストの基本原則
-
-**重要**: テストは実装と同時に進行し、品質を継続的に確保する
-
-#### テストの目的
-1. **バグの早期発見**: 実装段階で問題を検出
-2. **リファクタリングの安全性**: 変更時の影響を検証
-3. **仕様の文書化**: テストコードが仕様の証明となる
-4. **保守性の向上**: 将来の変更時の安全網
-
-### テストの種類と実施タイミング
-
-#### 1. 単体テスト（Unit Tests）
-**タイミング**: 各コンポーネント実装直後
-
-**対象**:
-- 個別のクラス・関数
-- ビジネスロジック
-- データ変換処理
-- バリデーション処理
-
-**実装方針**:
-- 1つのコンポーネントにつき1つのテストファイル
-- モックを活用して外部依存を排除
-- エッジケースを含む複数のテストケース
-- テストケース名は「何をテストしているか」を明確に
-
-**例**:
-```python
-# test_display_manager.py
-def test_extract_screen_ids_success():
-    """正常なdisplayplacer出力からScreen IDを抽出できる"""
-    
-def test_extract_screen_ids_empty_output():
-    """空の出力を適切に処理できる"""
-    
-def test_extract_screen_ids_invalid_format():
-    """不正なフォーマットでエラーを返す"""
-```
-
-#### 2. 統合テスト（Integration Tests）
-**タイミング**: 複数コンポーネントの連携実装後
-
-**対象**:
-- コンポーネント間の連携
-- 外部コマンド実行
-- ファイルI/O
-- 設定ファイル読み込み
-
-**実装方針**:
-- 実際の環境に近い状態でテスト
-- 一時ファイル・ディレクトリを使用
-- テスト後のクリーンアップを確実に実施
-- エラーケースも含めて検証
-
-**例**:
-```python
-# test_menubar_integration.py
-def test_apply_layout_end_to_end():
-    """レイアウト適用の全フローが正常に動作する"""
-    # 設定ファイル作成 → ディスプレイ検出 → パターンマッチ → コマンド実行
-```
-
-#### 3. エンドツーエンドテスト（E2E Tests）
-**タイミング**: 主要機能の実装完了後
-
-**対象**:
-- ユーザーの実際の使用フロー
-- CLIコマンドの実行
-- メニューバーアプリの操作
-
-**実装方針**:
-- 実際のユーザー操作をシミュレート
-- 本番環境に近い設定で実行
-- 成功パスとエラーパスの両方をテスト
-
-### テスト実装の順序（推奨）
-
-#### Phase 1: コア機能の単体テスト
-1. **基盤コンポーネント**: 依存関係が少ないコンポーネントから
-2. **ビジネスロジック**: 主要な処理ロジック
-3. **ユーティリティ**: 共通処理
-
-#### Phase 2: 統合テスト
-1. **コンポーネント連携**: 2-3個のコンポーネントの組み合わせ
-2. **外部依存**: ファイルシステム、外部コマンド
-3. **エラーハンドリング**: 異常系の処理
-
-#### Phase 3: E2Eテスト
-1. **主要フロー**: ユーザーが最も使う機能
-2. **エッジケース**: 特殊な状況での動作
-3. **エラーリカバリ**: エラー発生時の復旧
-
-### テストカバレッジの目標
-
-#### カバレッジ基準
-- **最低ライン**: 全体で30%以上
-- **推奨ライン**: 全体で50%以上
-- **理想ライン**: コアロジックで70%以上
-
-#### 優先順位
-1. **高優先度（70%以上目標）**:
-   - ビジネスロジック
-   - データ変換処理
-   - エラーハンドリング
-
-2. **中優先度（50%以上目標）**:
-   - ユーティリティ関数
-   - 設定管理
-   - ファイルI/O
-
-3. **低優先度（30%以上目標）**:
-   - UI表示ロジック
-   - ログ出力
-   - 初期化処理
-
-#### カバレッジ測定
-```bash
-# Python の場合
-pip install coverage
-coverage run -m pytest
-coverage report
-coverage html  # HTMLレポート生成
-```
-
-### CI/CDでのテスト自動化（必須）
-
-#### GitHub Actions 設定例
-```yaml
-name: Test
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        python-version: ['3.9', '3.10', '3.11']
-    
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      
-      - name: Install dependencies
-        run: |
-          pip install -e .
-          pip install pytest coverage
-      
-      - name: Run unit tests
-        run: pytest tests/test_*.py -v
-      
-      - name: Run integration tests
-        run: pytest tests/integration_*.py -v
-      
-      - name: Generate coverage report
-        run: |
-          coverage run -m pytest
-          coverage report
-          coverage html
-      
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-```
-
-#### 必須テスト項目
-- [ ] 単体テスト実行
-- [ ] 統合テスト実行
-- [ ] カバレッジレポート生成
-- [ ] Lintチェック（flake8、black、isort等）
-- [ ] 型チェック（mypy等、該当する場合）
-
-### テスト実装のベストプラクティス
-
-#### 1. テストの独立性
-```python
-# ✅ 良い例：各テストが独立
-def test_create_config():
-    config = create_temp_config()
-    # テスト実行
-    cleanup_temp_config(config)
-
-# ❌ 悪い例：テスト間で状態を共有
-global_config = None
-def test_create_config():
-    global global_config
-    global_config = create_config()
-```
-
-#### 2. テストデータの管理
-```python
-# ✅ 良い例：テストごとに新しいデータ
-@pytest.fixture
-def sample_display_output():
-    return """
-    Persistent screen id: 1234-5678
-    Resolution: 1920x1080
-    """
-
-# ❌ 悪い例：ハードコードされた外部ファイル依存
-def test_parse():
-    with open('/tmp/test_data.txt') as f:
-        data = f.read()
-```
-
-#### 3. モックの適切な使用
-```python
-# ✅ 良い例：外部依存をモック化
-@patch('subprocess.run')
-def test_execute_command(mock_run):
-    mock_run.return_value = MagicMock(returncode=0, stdout="success")
-    result = execute_command("test")
-    assert result.success
-
-# ❌ 悪い例：実際のコマンドを実行
-def test_execute_command():
-    result = execute_command("rm -rf /")  # 危険！
-```
-
-#### 4. テストの可読性
-```python
-# ✅ 良い例：AAA パターン（Arrange-Act-Assert）
-def test_pattern_matching():
-    # Arrange: テストデータの準備
-    config = {"patterns": [{"name": "dual", "screen_ids": ["123", "456"]}]}
-    detected_ids = ["123", "456"]
-    
-    # Act: テスト対象の実行
-    result = match_pattern(config, detected_ids)
-    
-    # Assert: 結果の検証
-    assert result.matched
-    assert result.pattern_name == "dual"
-
-# ❌ 悪い例：準備・実行・検証が混在
-def test_pattern_matching():
-    result = match_pattern({"patterns": [{"name": "dual", "screen_ids": ["123", "456"]}]}, ["123", "456"])
-    assert result.matched and result.pattern_name == "dual"
-```
-
-### テスト完了の判断基準
-
-#### 必須条件
-- [ ] 全ての単体テストが成功
-- [ ] 全ての統合テストが成功
-- [ ] カバレッジが最低基準（30%）を超えている
-- [ ] CI/CDパイプラインでテストが自動実行される
-- [ ] 主要な使用ケースがE2Eテストでカバーされている
-
-#### 推奨条件
-- [ ] カバレッジが推奨基準（50%）を超えている
-- [ ] エラーケースのテストが充実している
-- [ ] エッジケースのテストが含まれている
-- [ ] テストドキュメントが整備されている
-- [ ] テスト実行時間が適切（全体で5分以内が目安）
-
-#### 理想条件
-- [ ] コアロジックのカバレッジが70%を超えている
-- [ ] 複数のPythonバージョンでテストが成功
-- [ ] パフォーマンステストが実施されている
-- [ ] セキュリティテストが実施されている
-
-### テスト保守のガイドライン
-
-#### テストコードの品質
-- テストコードも本番コードと同じ品質基準を適用
-- テストコードのリファクタリングも定期的に実施
-- 重複するテストコードは共通化
-- テストユーティリティ・フィクスチャの活用
-
-#### テストの更新タイミング
-- **機能追加時**: 新機能のテストを追加
-- **バグ修正時**: バグを再現するテストを追加してから修正
-- **リファクタリング時**: テストが失敗しないことを確認
-- **仕様変更時**: 関連するテストを更新
-
-#### テスト失敗時の対応
-1. **原因特定**: どのテストが、なぜ失敗したか
-2. **影響範囲確認**: 他のテストへの影響
-3. **修正**: コードまたはテストの修正
-4. **再実行**: 全テストの再実行で確認
-5. **記録**: 失敗原因と対策を記録
-
-### プロジェクトタイプ別のテスト戦略
-
-#### CLIアプリケーション
-- コマンドライン引数のパース
-- 標準出力・標準エラー出力の検証
-- 終了コードの確認
-- 外部コマンド実行のモック化
-
-#### GUIアプリケーション（メニューバーアプリ等）
-- UI要素の存在確認
-- ユーザーアクション（クリック等）のシミュレート
-- 状態変化の検証
-- バックグラウンド処理のテスト
-
-#### サーバーレスアプリケーション（Lambda等）
-- イベントハンドラのテスト
-- 環境変数の設定
-- 外部サービス（S3、DynamoDB等）のモック化
-- タイムアウト・メモリ制限の考慮
-
-#### ライブラリ・SDK
-- 公開APIの全メソッドをテスト
-- 互換性テスト（複数バージョン）
-- ドキュメントの例がテストとして機能
-- エラーメッセージの明確性
-
-### テスト環境の管理
-
-#### ローカル開発環境
-```bash
-# 仮想環境の作成
-python -m venv venv
-source venv/bin/activate
-
-# 開発依存関係のインストール
-pip install -e ".[dev]"
-
-# テスト実行
-pytest -v
-```
-
-#### CI/CD環境
-- クリーンな環境で毎回実行
-- 複数のOS・バージョンでテスト
-- 並列実行でテスト時間を短縮
-- テスト結果の可視化
-
-#### テストデータの管理
-- テストデータはリポジトリに含める
-- 機密情報は含めない
-- 大きなファイルは外部ストレージ
-- テストデータ生成スクリプトの提供
-
 ## 品質保証
-- CFN Lintでexit code 0必須
-- テンプレート構造の統一
-- 命名規則の遵守
-- **AWS CloudFormation Guidelines完全準拠**
+
+**品質保証の詳細は `quality-assurance-guidelines.md` を参照してください。**
+
+### 概要
+- Pre-commit フックによるコミット前の自動品質チェック
+- CI/CD との連携による段階的な品質保証
+- コミット前の必須検証プロセス（import文整理、コードフォーマット等）
+- 段階的リリース戦略（Pre-release、ブランチ戦略）
+- 問題発生時の迅速対応メカニズム（ロールバック、ホットフィックス）
+- 検証チェックリスト（コミット前、リリース前、緊急時）
+- 継続的改善（問題パターンの記録と対策）
+
+詳細は `quality-assurance-guidelines.md` を参照。
+
+## テスト戦略
+
+**テスト戦略の詳細は `testing-guidelines.md` を参照してください。**
+
+### 概要
+- テストは実装と同時に進行し、品質を継続的に確保
+- 単体テスト → 統合テスト → E2Eテスト の順で実装
+- カバレッジ目標：最低30%、推奨50%、理想70%（コアロジック）
+- CI/CD でのテスト自動化必須
+- Homebrew パッケージの場合は Formula テスト必須
+
+詳細は `testing-guidelines.md` を参照。
+
+## GitHub 操作ガイドライン（必須）
+
+### プルリクエスト作成の原則
+
+**重要**: プルリクエストの作成は GitHub MCP サーバーを使用する。`gh` コマンドや `git` コマンドは使用しない。
+
+#### プルリクエスト作成手順
+
+1. **変更のコミットとプッシュ**:
+   ```bash
+   git add -A
+   git commit -m "Descriptive commit message"
+   git push origin feature/branch-name
+   ```
+
+2. **GitHub MCP サーバーでプルリクエスト作成**:
+   - `mcp_github_create_pull_request` ツールを使用
+   - 必須パラメータ:
+     - `owner`: リポジトリオーナー名
+     - `repo`: リポジトリ名
+     - `title`: プルリクエストのタイトル
+     - `head`: ソースブランチ名（例: `feature/enhance-documentation`）
+     - `base`: ターゲットブランチ名（通常は `main`）
+   - オプションパラメータ:
+     - `body`: プルリクエストの説明
+     - `draft`: ドラフトPRとして作成する場合は `true`
+
+#### プルリクエストのタイトルと説明
+
+**タイトル形式**:
+- 簡潔で内容が分かりやすいタイトル
+- 例: "Add documentation internationalization (English/Japanese)"
+- 例: "Fix Homebrew Formula resource dependencies"
+
+**説明（body）の推奨内容**:
+```markdown
+## 変更内容
+- 主要な変更点を箇条書きで記載
+
+## 目的
+- なぜこの変更が必要か
+
+## テスト
+- 実施したテスト内容
+- 確認した動作
+
+## 関連Issue
+- Closes #123（該当する場合）
+```
+
+#### 例：プルリクエスト作成
+
+```python
+# GitHub MCP サーバーを使用
+mcp_github_create_pull_request(
+    owner="eijikominami",
+    repo="display-layout-manager",
+    title="Add documentation internationalization (English/Japanese)",
+    head="feature/enhance-documentation",
+    base="main",
+    body="""## 変更内容
+- 英語版ドキュメントの作成（README.md, ARCHITECTURE.md, docs/configuration.md, docs/troubleshooting.md）
+- 日本語版ドキュメントの作成（_JP サフィックス）
+- 各ドキュメントに言語切り替えリンクを追加
+- 内部リンクを各言語版に対応
+- CONTRIBUTING.md を削除（不要）
+
+## 目的
+- 国際的なユーザーに対応するため、英語と日本語の両方でドキュメントを提供
+- ユーザーが母国語でアプリケーションの使い方を理解できるようにする
+
+## テスト
+- すべての言語切り替えリンクが機能することを確認
+- 内部リンクが正しい言語版を参照していることを確認
+- ドキュメントの内容が両言語で一致していることを確認
+"""
+)
+```
+
+### 避けるべき操作
+
+#### ❌ 使用禁止
+- `gh pr create` コマンド
+- `gh` コマンド全般（GitHub CLI）
+- Web ブラウザでの手動プルリクエスト作成の指示
+
+#### ✅ 正しい方法
+- GitHub MCP サーバーの `mcp_github_create_pull_request` ツールを使用
+- プログラマティックにプルリクエストを作成
+
+### その他の GitHub 操作
+
+#### Issue 作成
+- `mcp_github_issue_write` ツールを使用（method="create"）
+
+#### Issue コメント追加
+- `mcp_github_add_issue_comment` ツールを使用
+
+#### プルリクエスト更新
+- `mcp_github_update_pull_request` ツールを使用
+
+#### リポジトリ情報取得
+- `mcp_github_search_repositories` ツールを使用
+- `mcp_github_list_branches` ツールを使用
+- `mcp_github_list_commits` ツールを使用
+
+### GitHub MCP サーバーの利点
+
+1. **自動化**: コマンドラインツールを使わずにプログラマティックに操作
+2. **一貫性**: 常に同じ方法でGitHub操作を実行
+3. **エラーハンドリング**: 適切なエラーメッセージとリトライ機能
+4. **統合**: 他のツールとシームレスに連携
+
+## 品質保証の必須要件
 - **実装変更時の仕様書・ドキュメント整合性確認必須**
-- **コミット前品質保証メカニズム必須実行**
-- **テスト戦略に基づく包括的なテスト実施必須**
+- **品質保証メカニズム必須実行**: `quality-assurance-guidelines.md` 参照
+- **テスト戦略に基づく包括的なテスト実施必須**: `testing-guidelines.md` 参照
+- **GitHub 操作は GitHub MCP サーバーを使用**（gh コマンド禁止）
+- **CloudFormation/SAM**: `aws-cloudformation-guidelines.md` 参照（CFN Lint exit code 0必須）

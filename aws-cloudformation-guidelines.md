@@ -62,10 +62,12 @@ Globals:
 ```
 
 #### ランタイム選択ガイドライン
-- **常に最新のサポートされている Python ランタイム**を AWS Lambda で使用する
-- テンプレート作成前に **AWS Lambda ドキュメントを確認**して、現在の最新バージョンを特定する
-- **非推奨タイムラインを考慮**: 非推奨まで12ヶ月未満のランタイムは避ける
-- テンプレート作成時に **MCP AWS ドキュメントツールを使用**して、現在サポートされているランタイムを確認する
+**ランタイム選択の詳細は `aws-architecture.md` の「ランタイム選択の原則」セクションを参照してください。**
+
+要点：
+- 常に最新のサポートされているランタイムを使用
+- MCP で AWS Lambda ドキュメントを確認
+- 非推奨まで12ヶ月以上あるランタイムを選択
 
 ## Metadata セクション標準
 
@@ -368,28 +370,6 @@ Tags:
 4. **DependsOn**（該当する場合）
 5. **Type**
 6. **Properties**（AWS ドキュメントに合わせてサブプロパティをアルファベット順に）
-
-## Outputs セクション標準
-
-### Output 命名
-- 出力内容を明確に示す説明的な名前を使用
-- PascalCase を使用
-- 一般的なパターン: `Id`, `Arn`, `URL`, `Name`
-
-### Output 構造
-```yaml
-Outputs:
-  ResourceId:
-    Description: Clear description of the output
-    Value: !Ref ResourceName
-  ResourceArn:
-    Condition: ConditionalOutput  # If applicable
-    Description: Clear description of the output
-    Value: !GetAtt ResourceName.Arn
-```
-
-### Output 順序
-Output をアルファベット順に並べる。
 
 ## 文字列引用符標準
 
@@ -1134,6 +1114,158 @@ ec2.yaml              # EC2 instances and related
 elb.yaml              # Load balancers
 monitoring.yaml       # CloudWatch and alarms
 ```
+
+## 開発環境とツール
+
+### 必須ツール
+- **AWS CLI**: 適切な権限で設定済み
+- **SAM CLI**: サーバーレスアプリケーション用
+- **Python 3.x と pip**: Lambda 依存関係用
+- **CFN Lint**: テンプレート検証用（必須）
+
+### 共通コマンド
+
+#### SAM アプリケーション
+```bash
+# SAM アプリケーションのビルド
+sam build
+
+# SAM アプリケーションのデプロイ（samconfig.toml を先に確認）
+sam deploy
+
+# ガイド付きセットアップでデプロイ（samconfig.toml がない場合のみ）
+sam deploy --guided
+
+# ローカルテスト
+sam local start-api
+sam local invoke
+```
+
+#### CloudFormation
+```bash
+# テンプレート検証
+aws cloudformation validate-template --template-body file://template.yaml
+
+# スタックデプロイ
+aws cloudformation deploy --template-file template.yaml --stack-name my-stack
+
+# テンプレート Lint
+cfn-lint template.yaml
+```
+
+## デプロイメントガイドライン
+
+### デプロイ前の必須確認手順（全プロジェクト共通）
+1. **プロジェクト固有の設計書確認**: デプロイ前に必ず該当プロジェクトの設計書（design.md）を確認する
+2. **設定ファイル管理方式の確認**: 設定ファイルの配置場所と管理方式を設計書で確認する
+   - プロジェクトディレクトリ内（標準的な配置）
+   - プロジェクトディレクトリ外（プライベートリポジトリ等）
+   - 機密情報分離の有無
+3. **設定ファイル取得**: 設計書の指示に従って必要な設定ファイルを取得・配置する
+4. **デプロイ手順の確認**: プロジェクト固有のデプロイ手順があるかを設計書で確認する
+
+### SAM デプロイメント手順
+1. **sam build実行**: デプロイ前に必ず`sam build`を実行する
+2. **samconfig.tomlの存在確認**: プロジェクトディレクトリにsamconfig.tomlがあるかチェック
+3. **設定ファイルがある場合**: `sam deploy` を使用（--guidedは不要）
+4. **設定ファイルがない場合**: `sam deploy --guided` を使用して初回設定
+
+### パラメータ設定ガイドライン
+
+#### 1. 新たなパラメータが必要な場合
+- **必ず実際の値を確認してから設定する**
+- 推測や仮定でテスト値を設定しない
+- 値が不明な場合は明確に質問する
+- ユーザーから値を取得するまでデプロイを実行しない
+
+#### 2. デプロイ方法の決定
+- `samconfig.toml`の存在を確認
+- 存在する場合：既存設定を活用し、不足パラメータのみ追加
+- 存在しない場合：`sam deploy --guided`を使用
+- パラメータ追加時は`--parameter-overrides`で指定
+
+#### 3. 機密情報の取り扱い
+- Client SecretなどはNoEcho: trueで保護
+- samconfig.tomlには機密情報を直接記載しない
+- デプロイ時の手動指定を推奨
+
+#### 4. パラメータ値確認の必須フロー
+1. **新しいパラメータの検出**: テンプレートに新しいパラメータが追加された場合
+2. **ユーザーへの確認**: 「[パラメータ名]の値を教えてください」と明確に質問
+3. **値の取得待ち**: ユーザーから実際の値を取得するまで待機
+4. **デプロイ実行**: 実際の値を使用してデプロイを実行
+
+### デプロイコマンド例
+```bash
+# 1. 設計書確認（必須）
+# プロジェクトの .kiro/specs/[project-name]/design.md を確認
+
+# 2. 設定ファイル取得（設計書の指示に従う）
+# 例：プライベートリポジトリから取得する場合
+cp ../../../aws-cfn-conf-[account]/[project]/samconfig.toml .
+
+# 3. 必須：デプロイ前に必ずビルドを実行
+sam build
+
+# 4. デプロイ実行
+# 設定ファイルがある場合
+sam deploy
+
+# 新しいパラメータを追加する場合
+sam deploy --parameter-overrides \
+  NewParameter="USER_PROVIDED_VALUE"
+
+# 設定ファイルがない場合のみ
+sam deploy --guided
+```
+
+## トラブルシューティング
+
+### CloudFormation スタック障害対応
+
+#### UPDATE_ROLLBACK_FAILED状態の対処法
+
+**重要**: スタックがUPDATE_ROLLBACK_FAILED状態になった場合、スタックを削除せずに更新ロールバックを続行する
+
+##### 対処手順
+1. **CloudWatch Logsで根本原因を調査**
+   ```bash
+   # Lambda関数のログを確認
+   AWS_PAGER="" aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/[function-name]"
+   
+   # CloudFormationイベントを確認
+   AWS_PAGER="" aws cloudformation describe-stack-events --stack-name [stack-name]
+   ```
+
+2. **更新ロールバックの続行**
+   ```bash
+   # 更新ロールバックを続行（スタックを削除しない）
+   aws cloudformation continue-update-rollback --stack-name [stack-name]
+   ```
+
+3. **問題修正後の再デプロイ**
+   ```bash
+   # SAMの場合：必須：修正後は必ずビルドしてからデプロイ
+   sam build
+   sam deploy
+   
+   # CloudFormationの場合：直接デプロイ
+   aws cloudformation deploy --template-file template.yaml --stack-name [stack-name]
+   ```
+
+##### 避けるべき行動
+- ❌ スタックの削除
+- ❌ 原因調査なしでの再作成
+- ❌ sam buildを忘れてのデプロイ
+- ❌ 設計書を確認せずにデプロイ
+- ❌ 一般的なパターンを前提とした作業
+
+##### 正しい行動
+- ✅ デプロイ前の設計書確認
+- ✅ プロジェクト固有の設定ファイル管理方式の確認
+- ✅ CloudWatch Logsでの根本原因調査
+- ✅ continue-update-rollbackでの復旧
+- ✅ 問題修正後の再デプロイ（SAM: sam build → sam deploy、CloudFormation: aws cloudformation deploy）
 
 ## バージョン管理とメンテナンス
 
