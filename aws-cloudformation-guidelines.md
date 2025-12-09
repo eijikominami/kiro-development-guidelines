@@ -380,25 +380,30 @@ RoleName: !Sub ${LogicalName}-stepfunctions-execution-role-${AWS::Region}
 #### その他のリソース命名例
 
 ```yaml
-# Security Groups - Use SecurityGroupFor[Purpose] format
-SecurityGroupForRDS:       # For RDS database access
+# Security Groups
+SecurityGroup:             # Simple name if only one
+SecurityGroupForRDS:       # For RDS database access (Use SecurityGroupFor[Purpose] format if multiple)
 SecurityGroupForELB:       # For load balancer
 SecurityGroupForLambda:    # For Lambda function
 
-# Subnets - Use SubnetFor[Purpose] format
-SubnetForPublic:           # Public subnet
-SubnetForPrivate:          # Private subnet
-SubnetForDatabase:         # Database subnet
+# Subnets - Clear purpose indication
+SubnetPublic:              # Public subnet
+SubnetPrivate:             # Private subnet
+SubnetTransit:             # Transit gateway subnet
+SubnetFirewall:            # Firewall subnet
+SubnetForDatabase:         # Database subnet (Use SubnetFor[Purpose] for specific purposes)
 
-# Lambda Functions - Use LambdaFunctionFor[Purpose] format
+# Lambda Functions
+LambdaFunction:            # Simple name if only one
+LambdaFunctionForProcessor:        # Descriptive if multiple (Use LambdaFunctionFor[Purpose] format)
 LambdaFunctionForDataProcessor:    # For data processing
 LambdaFunctionForNotification:     # For notifications
 LambdaFunctionForETL:              # For ETL operations
 
-# CloudWatch Alarms - Use AlarmFor[Metric/Resource] format
-AlarmForCPUUtilization:    # For CPU monitoring
-AlarmForDiskSpace:         # For disk space monitoring
-AlarmForLambdaErrors:      # For Lambda error monitor
+# CloudWatch Alarms - Start with "Alarm"
+AlarmCPUUtilization:       # For CPU monitoring
+AlarmDiskSpace:            # For disk space monitoring
+AlarmForLambdaErrors:      # For Lambda error monitor (Use AlarmFor[Metric/Resource] format for specific targets)
 ```
 
 ### リソースプロパティ標準
@@ -416,12 +421,86 @@ Tags:
 ```
 
 #### プロパティ順序
-1. **UpdateReplacePolicy**（該当する場合）
-2. **DeletionPolicy**（該当する場合）
-3. **Condition**（該当する場合）
-4. **DependsOn**（該当する場合）
+1. **Condition**（該当する場合）
+2. **DependsOn**（該当する場合）
 5. **Type**
 6. **Properties**（AWS ドキュメントに合わせてサブプロパティをアルファベット順に）
+
+### 特定リソースの標準実装パターン
+
+#### SNS トピック標準実装
+
+全ての SNS トピックは AWS Serverless Repository アプリケーション形式を使用する必要があります：
+
+```yaml
+SNSForAlert:
+  Condition: CreateSNSForAlert
+  Type: AWS::Serverless::Application
+  Properties:
+    Location:
+      ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/sns-topic
+      SemanticVersion: 2.2.14
+    NotificationARNs:
+      - !If
+        - CreateSNSForDeployment
+        - !GetAtt SNSForDeployment.Outputs.SNSTopicArn
+        - !Ref SNSForDeploymentArn
+    Parameters:
+      TopicName: !Sub Alert-createdby-${AWS::StackName}
+    Tags:
+      environment: !Ref Environment
+      createdby: !Ref TagValue
+
+SNSForDeployment:
+  Condition: CreateSNSForDeployment
+  Type: AWS::Serverless::Application
+  Properties:
+    Location:
+      ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/sns-topic
+      SemanticVersion: 2.2.14
+    Parameters:
+      TopicName: !Sub Deployment-createdby-${AWS::StackName}
+    Tags:
+      environment: !Ref Environment
+      createdby: !Ref TagValue
+```
+
+**SNS リソース命名規則：**
+- **アラート SNS**: `SNSForAlert`
+- **デプロイ SNS**: `SNSForDeployment`
+- **トピック名パターン**: `Alert-createdby-${AWS::StackName}` または `Deployment-createdby-${AWS::StackName}`
+
+**SNS リソースに必要な Conditions：**
+```yaml
+Conditions:
+  CreateSNSForAlert: !Equals [!Ref SNSForAlertArn, '']
+  CreateSNSForDeployment: !Equals [!Ref SNSForDeploymentArn, '']
+```
+
+**SNS リソースアンチパターン：**
+
+❌ **直接的な AWS::SNS::Topic 作成を避ける**：
+```yaml
+# DO NOT USE THIS FORMAT
+SNSForAlert:
+  Type: AWS::SNS::Topic
+  Properties:
+    TopicName: !Sub "${LogicalName}-alerts-${AWS::Region}"
+    DisplayName: Analytics Platform Alerts
+    Tags:
+      - Key: Name
+        Value: !Sub "${LogicalName}-alerts-${AWS::Region}"
+      - Key: environment
+        Value: !Ref Environment
+      - Key: !Ref TagKey
+        Value: !Ref TagValue
+```
+
+✅ **上記の標準実装に示されているように AWS::Serverless::Application 形式を使用**。
+
+#### CloudWatch Alarm 統合
+
+CloudWatch Alarm を組み込む際は、https://github.com/eijikominami/aws-cloudformation-templates/tree/master/monitoring に記載されているアプリケーションが使えそうなら、それを使用することを推奨します。これにより独自実装が不要になります。
 
 ## Outputs セクション標準
 
@@ -726,32 +805,11 @@ Value: !Sub
     Env: !Ref Environment
 ```
 
-## コメントとドキュメント
+## 標準リソース実装パターン
 
-### コメントの使用
-- 主要なリソースグループを区切るためにコメントを使用
-- 複雑なロジックを説明するためにコメントを使用
-- 形式: `# コメントテキスト`
+### SNS トピック標準実装
 
-### リソースグループコメント
-```yaml
-Resources:
-  # Nested Stack
-  SNSForAlert:
-    Type: AWS::Serverless::Application
-    
-  # IAM Roles
-  IAMRoleForLambda:
-    Type: AWS::IAM::Role
-    
-  # Lambda Functions
-  LambdaFunction:
-    Type: AWS::Lambda::Function
-```
-
-### 標準 SNS リソース形式
-
-#### SNS トピック標準実装
+#### 基本形式
 全ての SNS トピックは AWS Serverless Repository アプリケーション形式を使用する必要があります：
 
 ```yaml
@@ -761,7 +819,7 @@ SNSForAlert:
   Properties:
     Location:
       ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/sns-topic
-      SemanticVersion: 2.2.13
+      SemanticVersion: 2.2.14
     NotificationARNs:
       - !If
         - CreateSNSForDeployment
@@ -779,7 +837,7 @@ SNSForDeployment:
   Properties:
     Location:
       ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/sns-topic
-      SemanticVersion: 2.2.13
+      SemanticVersion: 2.2.14
     Parameters:
       TopicName: !Sub Deployment-createdby-${AWS::StackName}
     Tags:
@@ -818,6 +876,35 @@ SNSForAlert:
 ```
 
 ✅ **上記の標準実装に示されているように AWS::Serverless::Application 形式を使用**。
+
+### CloudWatch Alarm 統合
+
+#### AWS Serverless Application Repository の使用（推奨）
+
+CloudWatch Alarm を組み込む際は、https://github.com/eijikominami/aws-cloudformation-templates/tree/master/monitoring に記載されているアプリケーションが使えそうなら、それを使用することを推奨します。これにより独自実装が不要になります。
+
+## コメントとドキュメント
+
+### コメントの使用
+- 主要なリソースグループを区切るためにコメントを使用
+- 複雑なロジックを説明するためにコメントを使用
+- 形式: `# コメントテキスト`
+
+### リソースグループコメント
+```yaml
+Resources:
+  # Nested Stack
+  SNSForAlert:
+    Type: AWS::Serverless::Application
+    
+  # IAM Roles
+  IAMRoleForLambda:
+    Type: AWS::IAM::Role
+    
+  # Lambda Functions
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+```
 
 ## SAM 固有のガイドライン
 
