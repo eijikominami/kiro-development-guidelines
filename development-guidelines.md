@@ -3,117 +3,33 @@
 ## 基本方針
 
 ### 言語とドキュメント
-- **ドキュメントの記載とチャットの会話は日本語**
+- ドキュメントの記載とチャットの会話は日本語
 - コード内のコメントは英語でも可
 - 変数名、関数名は英語を使用
 
 ### 開発プロセス
-- **Infrastructure as Code**: CloudFormation/SAMテンプレートでインフラ管理
-- **CI/CD**: AWS で作る場合は AWS CodePipeline、それ以外は GitHub Actions 等でも可
-- **監視・ログ**: CloudWatch、X-Rayによる可観測性確保
-- **ブランチ戦略**: 詳細は「ブランチ戦略（必須）」セクションを参照
+- Infrastructure as Code: CloudFormation/SAMテンプレートでインフラ管理
+- CI/CD: AWS で作る場合は AWS CodePipeline、それ以外は GitHub Actions 等でも可
+- 監視・ログ: CloudWatch、X-Rayによる可観測性確保
+- ブランチ戦略: 詳細は「ブランチ戦略」セクションを参照
 
-## ブランチ戦略（必須）
+### プロダクト品質
+ユーザビリティ、アクセシビリティ、パフォーマンス、セキュリティなどの一般的なプロダクトガイドラインを守る
+
+## ブランチ戦略
 
 ### 基本原則
 
-**重要**: main ブランチへの直接コミットは避け、必ず feature ブランチを使用する
+main ブランチへの直接コミットは避け、feature ブランチを使用する
 
 ### ブランチの種類
 
-#### 1. main ブランチ
-- **用途**: 本番環境にデプロイ可能な安定版コード
-- **保護**: 直接コミット禁止
-- **マージ**: feature ブランチからのみマージ可能
-- **タグ**: リリース時にバージョンタグを付与
+- main ブランチ: 直接コミット禁止
+- feature ブランチ: `feature/<機能名>`
+- fix ブランチ: `fix/<修正内容>`
+- hotfix ブランチ: `hotfix/<バージョン>-<修正内容>`
 
-#### 2. feature ブランチ
-- **命名規則**: `feature/<機能名>`
-- **用途**: 新機能開発、リファクタリング
-- **作成元**: main ブランチから分岐
-- **マージ先**: main ブランチへマージ
-
-#### 3. fix ブランチ
-- **命名規則**: `fix/<修正内容>`
-- **用途**: バグ修正
-- **作成元**: main ブランチから分岐
-- **マージ先**: main ブランチへマージ
-
-#### 4. hotfix ブランチ
-- **命名規則**: `hotfix/<バージョン>-<修正内容>`
-- **用途**: 本番環境の緊急修正
-- **作成元**: main ブランチから分岐
-- **マージ先**: main ブランチへマージ後、即座にタグ作成
-
-### ワークフロー
-
-#### 機能開発の流れ
-```bash
-# 1. main ブランチを最新化
-git checkout main
-git pull origin main
-
-# 2. feature ブランチを作成
-git checkout -b feature/remove-daemon-functionality
-
-# 3. 開発作業
-# - コードの変更
-# - テストの実行
-# - コミット
-
-git add .
-git commit -m "Remove daemon functionality"
-
-# 4. リモートにプッシュ
-git push origin feature/remove-daemon-functionality
-
-# 5. main ブランチへマージ
-git checkout main
-git merge feature/remove-daemon-functionality
-
-# 6. リモートの main を更新
-git push origin main
-
-# 7. feature ブランチを削除（オプション）
-git branch -d feature/remove-daemon-functionality
-git push origin --delete feature/remove-daemon-functionality
-```
-
-#### バグ修正の流れ
-```bash
-# 1. fix ブランチを作成
-git checkout -b fix/github-actions-pyobjc-issue
-
-# 2. 修正作業
-git add .
-git commit -m "Fix GitHub Actions workflow to remove PyObjC resources"
-
-# 3. main へマージ
-git checkout main
-git merge fix/github-actions-pyobjc-issue
-git push origin main
-```
-
-#### ホットフィックスの流れ（緊急修正）
-```bash
-# 1. hotfix ブランチを作成
-git checkout -b hotfix/v1.2.1-integration-test-fix
-
-# 2. 最小限の修正
-git add .
-git commit -m "Fix integration test imports"
-
-# 3. main へマージ
-git checkout main
-git merge hotfix/v1.2.1-integration-test-fix
-git push origin main
-
-# 4. 緊急リリースタグ
-git tag v1.2.1
-git push origin v1.2.1
-```
-
-### バージョニングルール（必須）
+### バージョニングルール
 
 **セマンティックバージョニング（Semantic Versioning）を採用**
 
@@ -125,248 +41,53 @@ MAJOR.MINOR.PATCH
 
 #### バージョンアップの基準
 
-##### MAJOR（メジャーバージョン）
-**互換性のない API 変更を行った場合**
+セマンティックバージョニング（MAJOR.MINOR.PATCH）を採用：
+- MAJOR: 互換性のない変更
+- MINOR: 後方互換性を保った機能追加
+- PATCH: 後方互換性を保ったバグ修正
 
-- 既存機能の削除
-- 既存 API の破壊的変更
-- 設定ファイル形式の非互換な変更
-- コマンドライン引数の非互換な変更
+### main ブランチ保護
 
-**例**:
-- `1.5.0` → `2.0.0`: 設定ファイル形式を YAML から JSON に変更
-- `2.3.1` → `3.0.0`: CLI コマンドの引数を大幅に変更
+main ブランチへの直接コミットは禁止
 
-##### MINOR（マイナーバージョン）
-**後方互換性を保ったまま機能を追加した場合**
 
-- 新機能の追加
-- 既存機能の拡張（互換性あり）
-- 非推奨（deprecated）機能の追加
-- 内部実装の大幅な改善
 
-**例**:
-- `1.4.2` → `1.5.0`: 重複起動防止機能とマルチディスプレイ対応を追加
-- `1.5.0` → `1.6.0`: 新しいレイアウトパターンマッチング機能を追加
+## タスク実行時のプロセス
 
-##### PATCH（パッチバージョン）
-**後方互換性を保ったままバグ修正を行った場合**
-
-- バグ修正
-- セキュリティ修正
-- パフォーマンス改善（機能変更なし）
-- ドキュメント修正のみ
-- 内部リファクタリング（動作変更なし）
-
-**例**:
-- `1.5.0` → `1.5.1`: ロケール検出のバグ修正
-- `1.5.1` → `1.5.2`: メモリリークの修正
-
-#### プレリリースバージョン
-
-**ベータ版・アルファ版のバージョン形式**
-
-```
-MAJOR.MINOR.PATCH-prerelease.N
-例: 1.6.0-beta.1, 2.0.0-alpha.1
-```
-
-**使用場面**:
-- 大きな機能追加の事前テスト
-- メジャーバージョンアップの事前検証
-- 限定ユーザーでのテスト
-
-#### バージョンアップの判断フロー
-
-```
-変更内容を確認
-  ↓
-既存機能が壊れる？
-  YES → MAJOR バージョンアップ
-  NO  ↓
-新機能を追加した？
-  YES → MINOR バージョンアップ
-  NO  ↓
-バグ修正のみ？
-  YES → PATCH バージョンアップ
-```
-
-#### 実例：今回のリリース（v1.5.0）
-
-**変更内容**:
-- 重複起動防止機能の追加（新機能）
-- マルチディスプレイ対応の追加（新機能）
-- 日本語ロケール検出の改善（バグ修正）
-
-**判断**:
-- 既存機能は壊れていない（互換性あり）
-- 新機能を追加している
-- → **MINOR バージョンアップ**: `1.4.2` → `1.5.0`
-
-### リリースプロセス
-
-#### 通常リリース
-```bash
-# 1. main ブランチが安定していることを確認
-git checkout main
-git pull origin main
-
-# 2. バージョンを更新（__init__.py, CHANGELOG.md など）
-# 3. コミット
-git add .
-git commit -m "Bump version to 1.5.0"
-git push origin main
-
-# 4. タグを作成
-git tag v1.5.0
-git push origin v1.5.0
-```
-
-#### プレリリース（ベータ版）
-```bash
-# 1. beta ブランチを作成
-git checkout -b beta/v1.6.0-beta.1
-
-# 2. ベータ版としてタグ付け
-git tag v1.6.0-beta.1
-git push origin v1.6.0-beta.1
-
-# 3. テスト後、問題なければ main へマージ
-git checkout main
-git merge beta/v1.6.0-beta.1
-git tag v1.6.0
-git push origin v1.6.0
-```
-
-### 避けるべきパターン
-
-#### ❌ 悪い例
-```bash
-# main ブランチで直接作業
-git checkout main
-# 変更作業...
-git add .
-git commit -m "Fix something"
-git push origin main
-```
-
-#### ✅ 良い例
-```bash
-# feature ブランチで作業
-git checkout -b feature/fix-something
-# 変更作業...
-git add .
-git commit -m "Fix something"
-git push origin feature/fix-something
-
-# main へマージ
-git checkout main
-git merge feature/fix-something
-git push origin main
-```
-
-### main ブランチ保護の重要性
-
-**絶対ルール**: main ブランチへの直接コミットは禁止
-
-#### main ブランチで作業してしまった場合の対処法
-
-もし誤って main ブランチで作業してしまった場合：
-
-```bash
-# 1. 現在の変更を確認
-git status
-
-# 2. まだコミットしていない場合
-git stash                              # 変更を一時保存
-git checkout -b feature/fix-something  # feature ブランチ作成
-git stash pop                          # 変更を復元
-git add .
-git commit -m "Fix something"
-
-# 3. すでにコミットしてしまった場合（まだプッシュしていない）
-git log --oneline -5                   # コミット履歴確認
-git branch feature/fix-something       # 現在位置で feature ブランチ作成
-git reset --hard HEAD~1                # main を1つ前に戻す
-git checkout feature/fix-something     # feature ブランチに移動
-
-# 4. すでにプッシュしてしまった場合
-# → 次回から必ず feature ブランチを使用
-# → 今回のコミットは履歴に残るが、以降は正しい手順を守る
-```
-
-#### 作業開始前の必須チェック
-
-```bash
-# 現在のブランチを確認
-git branch
-
-# main ブランチにいる場合は即座に feature ブランチを作成
-git checkout -b feature/your-feature-name
-```
-
-### ブランチ管理のベストプラクティス
-
-#### 基本ルール
-1. **main ブランチでの直接作業禁止**: 必ず適切なブランチ（feature/fix/hotfix）を作成してから作業を開始
-2. **テスト完了後にマージ**: 全てのテストが成功してから main ブランチへマージ
-3. **リリース時のタグ作成**: main ブランチでバージョンタグを作成してリリース
-
-#### 日常的な運用
-1. **小さく頻繁にコミット**: 大きな変更を避け、小さな単位でコミット
-2. **明確なコミットメッセージ**: 何を変更したか、なぜ変更したかを明記
-3. **定期的なマージ**: feature ブランチが長期化しないよう、定期的に main へマージ
-4. **コンフリクトの早期解決**: main の変更を定期的に feature ブランチへマージ
-5. **ブランチの削除**: マージ後は不要な feature ブランチを削除
-
-## 技術スタック
-
-### コア技術
-- **Infrastructure as Code**: AWS CloudFormation/SAM（詳細は `aws-cloudformation-guidelines.md` 参照）
-- **ランタイム**: プロジェクトに応じて選択（Python、Node.js、Java、Go 等）
-- **設定管理**: YAML 設定ファイル
-- **バージョン管理**: Git と pre-commit フック
-
-### ビルドシステム
-- **Pre-commit**: コード品質と Lint の自動化
-- **SAM CLI**: サーバーレスアプリケーションのビルドとデプロイ（詳細は `aws-cloudformation-guidelines.md` 参照）
-
-## タスク実行時の必須プロセス
-
-### 実装開始前の必須確認
-- **ガイドライン参照指示の確認**: タスクに「〜に従って」「〜を遵守」「〜.mdに従って」と記載がある場合、**必ずそのファイルを最初に読み込む**
+### 実装開始前の確認
+- **ガイドライン参照指示の確認**: タスクに「〜に従って」「〜を遵守」「〜.mdに従って」と記載がある場合、そのファイルを最初に読み込む
 - **参照ファイルの理解**: 参照ファイルの内容を理解してから実装を開始する
 - **要件のチェックリスト化**: 参照ファイルの要件をチェックリスト化して実装中に確認する
 
-### 実装完了前の必須検証
+### 実装完了前の検証
 - **全指示項目の確認**: タスクに記載された全ての指示項目を一つずつ確認
-- **検証項目の実行**: 特に「CFN Lint実行（exit code 0必須）」等の検証項目は必ず実行
+- **検証項目の実行**: 特に「CFN Lint実行（exit code 0）」等の検証項目は実行
 - **ガイドライン準拠確認**: ガイドライン準拠が要求されている場合は準拠状況を確認
 
-### CloudFormation/SAMテンプレート作成/更新時の必須手順
+### CloudFormation/SAMテンプレート作成/更新時の手順
 **詳細は `aws-cloudformation-guidelines.md` を参照**
 
 1. **AWS CloudFormation Guidelines確認**: `aws-cloudformation-guidelines.md` を参照
 2. **MCP でAWSドキュメント確認**: リソーススキーマ情報を確認（`aws-architecture.md` 参照）
-3. **テンプレート構造遵守**: 必須セクション順序、命名規則、標準パラメータ
-4. **CFN Lint検証**: exit code 0を確保（必須）
+3. **テンプレート構造遵守**: セクション順序、命名規則、標準パラメータ
+4. **CFN Lint検証**: exit code 0を確保
 
-## 実装変更時の仕様書・ドキュメント整合性確認（必須）
+## 実装変更時の仕様書・ドキュメント整合性確認
 
-### 実装変更後の必須確認プロセス
+### 実装変更後の確認プロセス
 
-**重要**: 試行錯誤やエラー解消のために実装を変更した場合、必ず以下の確認を行う
+試行錯誤やエラー解消のために実装を変更した場合、以下の確認を行う
 
-**絶対ルール**: コード実装を変更したら、その変更が完了した直後に必ず README.md を更新する。実装とドキュメントの更新は一体の作業として扱う。
+コード実装を変更したら、その変更が完了した直後に README.md を更新する。実装とドキュメントの更新は一体の作業として扱う。
 
-#### 1. 仕様書への影響確認（必須）
+#### 1. 仕様書への影響確認
 - **要件定義書 (requirements.md)**: 変更が要件の受け入れ基準に影響しないか確認
 - **設計書 (design.md)**: アーキテクチャや設計方針との整合性を確認
 - **実装計画書 (tasks.md)**: タスクの前提条件や依存関係に影響しないか確認
 
-#### 2. ドキュメントへの影響確認（必須・即時実行）
+#### 2. ドキュメントへの影響確認
 
-**README.md 更新の必須タイミング**:
+README.md 更新のタイミング:
 - ✅ **実装変更直後**: コード変更が完了したら、その場で README.md を更新
 - ✅ **機能追加時**: 新機能の使用方法を README.md に追加
 - ✅ **機能削除時**: 削除された機能の記載を README.md から削除
@@ -374,7 +95,7 @@ git checkout -b feature/your-feature-name
 - ✅ **コマンドオプション変更時**: 使用例とオプション説明を README.md で更新
 
 **更新対象ドキュメント**:
-- **README.md**: インストール手順、使用方法、設定例を即座に更新（必須）
+- **README.md**: インストール手順、使用方法、設定例を即座に更新
 - **CHANGELOG.md**: 変更内容の記録が必要か確認
 - **API仕様書**: インターフェース変更がある場合は更新
 - **設定ファイル例**: デフォルト値や設定項目の変更を反映
@@ -388,16 +109,16 @@ git checkout -b feature/your-feature-name
 
 ##### 実行順序
 1. **コード実装**: 機能の実装・変更
-2. **README.md の即時更新**: 実装変更の直後に必ず更新（最優先・必須）
+2. **README.md の即時更新**: 実装変更の直後に更新
 3. **仕様書の更新**: requirements.md → design.md → tasks.md の順で更新
 4. **その他ドキュメントの更新**: CHANGELOG.md → その他ドキュメント
 5. **外部システムの更新**: GitHub Actions → Homebrew Formula → その他設定
 6. **整合性の最終確認**: 全体を通して矛盾がないか確認
 
-**重要**: README.md の更新は「後でまとめて」ではなく、「実装変更の直後に即座に」行う
+README.md の更新は「後でまとめて」ではなく、「実装変更の直後に即座に」行う
 
-##### 実装変更時の必須チェック項目
-- [ ] **README.md を即座に更新**（最優先・必須）
+##### 実装変更時のチェック項目
+- [ ] **README.md を即座に更新**
 - [ ] 要件定義書の受け入れ基準との整合性を確認
 - [ ] 設計書のアーキテクチャ図・設計方針との整合性を確認
 - [ ] CHANGELOG.md に変更内容を記録
@@ -405,7 +126,7 @@ git checkout -b feature/your-feature-name
 - [ ] GitHub Actions 等の自動化スクリプトを更新
 - [ ] 依存関係の変更をパッケージ管理ファイルに反映
 
-##### README.md 更新が必須となる変更パターン
+##### README.md 更新が必要な変更パターン
 - **UI/メニュー変更**: メニュー項目の追加・削除・変更 → メニュー構成図を更新
 - **機能追加**: 新機能の実装 → 使用方法を追加
 - **機能削除**: 機能の削除 → 該当機能の記載を削除
@@ -420,7 +141,7 @@ git checkout -b feature/your-feature-name
 - **変更の影響範囲を事前に特定**: 変更前に影響を受ける可能性のあるファイルをリストアップ
 - **段階的な更新**: 一度にすべてを変更せず、段階的に更新して整合性を確認
 - **レビューの実施**: 可能であれば第三者による整合性レビューを実施
-- **テストの実行**: 更新後は必ず動作テストを実行して問題がないことを確認
+- **テストの実行**: 更新後は動作テストを実行して問題がないことを確認
 
 ### 実装変更の記録
 
@@ -452,12 +173,12 @@ git checkout -b feature/your-feature-name
 
 ## 品質保証
 
-**品質保証の詳細は `quality-assurance-guidelines.md` を参照してください。**
+品質保証の詳細は `quality-assurance-guidelines.md` を参照。
 
 ### 概要
 - Pre-commit フックによるコミット前の自動品質チェック
 - CI/CD との連携による段階的な品質保証
-- コミット前の必須検証プロセス（import文整理、コードフォーマット等）
+- コミット前の検証プロセス（import文整理、コードフォーマット等）
 - 段階的リリース戦略（Pre-release、ブランチ戦略）
 - 問題発生時の迅速対応メカニズム（ロールバック、ホットフィックス）
 - 検証チェックリスト（コミット前、リリース前、緊急時）
@@ -467,22 +188,22 @@ git checkout -b feature/your-feature-name
 
 ## テスト戦略
 
-**テスト戦略の詳細は `testing-guidelines.md` を参照してください。**
+テスト戦略の詳細は `testing-guidelines.md` を参照。
 
 ### 概要
 - テストは実装と同時に進行し、品質を継続的に確保
 - 単体テスト → 統合テスト → E2Eテスト の順で実装
-- カバレッジ目標：最低30%、推奨50%、理想70%（コアロジック）
-- CI/CD でのテスト自動化必須
-- Homebrew パッケージの場合は Formula テスト必須
+- カバレッジ目標：最低30%、50%、理想70%（コアロジック）
+- CI/CD でのテスト自動化
+- Homebrew パッケージの場合は Formula テスト
 
 詳細は `testing-guidelines.md` を参照。
 
-## GitHub 操作ガイドライン（必須）
+## GitHub 操作ガイドライン
 
 ### プルリクエスト作成の原則
 
-**重要**: プルリクエストの作成は GitHub MCP サーバーを使用する。`gh` コマンドや `git` コマンドは使用しない。
+プルリクエストの作成は GitHub MCP サーバーを使用する。`gh` コマンドや `git` コマンドは使用しない。
 
 #### プルリクエスト作成手順
 
@@ -495,7 +216,7 @@ git checkout -b feature/your-feature-name
 
 2. **GitHub MCP サーバーでプルリクエスト作成**:
    - `mcp_github_create_pull_request` ツールを使用
-   - 必須パラメータ:
+   - パラメータ:
      - `owner`: リポジトリオーナー名
      - `repo`: リポジトリ名
      - `title`: プルリクエストのタイトル
@@ -512,7 +233,7 @@ git checkout -b feature/your-feature-name
 - 例: "Add documentation internationalization (English/Japanese)"
 - 例: "Fix Homebrew Formula resource dependencies"
 
-**説明（body）の推奨内容**:
+**説明（body）の内容**:
 ```markdown
 ## 変更内容
 - 主要な変更点を箇条書きで記載
@@ -591,9 +312,9 @@ mcp_github_create_pull_request(
 3. **エラーハンドリング**: 適切なエラーメッセージとリトライ機能
 4. **統合**: 他のツールとシームレスに連携
 
-## 品質保証の必須要件
-- **実装変更時の仕様書・ドキュメント整合性確認必須**
-- **品質保証メカニズム必須実行**: `quality-assurance-guidelines.md` 参照
-- **テスト戦略に基づく包括的なテスト実施必須**: `testing-guidelines.md` 参照
+## 品質保証の要件
+- 実装変更時の仕様書・ドキュメント整合性確認
+- 品質保証メカニズム実行: `quality-assurance-guidelines.md` 参照
+- テスト戦略に基づく包括的なテスト実施: `testing-guidelines.md` 参照
 - **GitHub 操作は GitHub MCP サーバーを使用**（gh コマンド禁止）
 - **CloudFormation/SAM**: `aws-cloudformation-guidelines.md` 参照（CFN Lint exit code 0必須）

@@ -7,19 +7,19 @@ fileMatchPattern: '*.yaml'
 
 このドキュメントは、aws-cloudformation-templates プロジェクトにおける CloudFormation YAML テンプレートの包括的な標準形式を定義します。全てのサービステンプレート、ファイル構成、命名規則の一貫性を維持するための完全なリファレンスとして機能します。
 
-## テンプレート作成前の必須手順
+## テンプレート作成前の手順
 
-### MCP によるドキュメント確認（必須）
+### MCP によるドキュメント確認
 
-**CloudFormation/SAM テンプレートを作成・修正する際は、事前学習の知識に頼らず、必ず MCP で AWS ドキュメントを確認する**
+**CloudFormation/SAM テンプレートを作成・修正する際は、事前学習の知識に頼らず、 MCP で AWS ドキュメントを確認する**
 
-詳細な原則は `aws-architecture.md` の「情報収集・調査の原則」を参照してください。
+詳細な原則は `aws-architecture.md` の「情報収集・調査の原則」を参照。
 
-#### 必須確認項目
+#### 確認項目
 
 1. **リソーススキーマ情報**: `get_resource_schema_information` でリソースの正確なプロパティを確認
 2. **最新の設定オプション**: 各 AWS サービスの最新機能と設定項目を確認
-3. **プロパティの制約**: 必須プロパティ、値の範囲、形式制限を確認
+3. **プロパティの制約**: 必要なプロパティ、値の範囲、形式制限を確認
 4. **ベストプラクティス**: セキュリティ、パフォーマンス、コスト最適化の観点
 
 #### 対象リソース
@@ -49,7 +49,7 @@ get_resource(resource_type="AWS::S3::Bucket", identifier="bucket-name")
 list_resources(resource_type="AWS::SNS::Topic")
 ```
 
-### ランタイム選択時の MCP 確認（必須）
+### ランタイム選択時の MCP 確認
 
 **SAM/Lambda テンプレート作成時は、MCP で AWS ドキュメントを確認して最新のサポートされているランタイムを選択する**
 
@@ -57,13 +57,13 @@ list_resources(resource_type="AWS::SNS::Topic")
 
 1. **最新優先**: 技術的な障壁がない限り、最新のサポートされているランタイムを使用
 2. **非推奨期限確認**: 非推奨まで12ヶ月以上あるランタイムを選択
-3. **MCP確認必須**: テンプレート作成前に MCP で AWS Lambda runtimes ドキュメントを確認
+3. **MCP確認**: テンプレート作成前に MCP で AWS Lambda runtimes ドキュメントを確認
 4. **長期サポート重視**: 同等の機能であれば、より長期サポートが予定されているランタイムを選択
 
 ## テンプレート構造と順序
 
-### 必須セクション順序
-全ての CloudFormation テンプレートは、この正確な構造と順序に従う必要があります：
+### セクション順序
+全ての CloudFormation テンプレートは、この正確な構造と順序に従う：
 
 1. **AWSTemplateFormatVersion** (MANDATORY)
 2. **Transform** (MANDATORY for SAM templates)
@@ -115,7 +115,7 @@ Globals:
 ```
 
 #### ランタイム選択ガイドライン
-**ランタイム選択の詳細は本ガイドラインの「テンプレート作成前の必須手順」セクションを参照してください。**
+ランタイム選択の詳細は本ガイドラインの「テンプレート作成前の手順」セクションを参照。
 
 ## Metadata セクション標準
 
@@ -211,7 +211,7 @@ Parameters:
 - **サービス固有のパラメータ**: サービス名で始まる説明的な名前を使用（例: `CloudFrontDefaultTTL`）
 - **リソース識別子**: 明確な命名を使用（例: `VPCId`, `SubnetIds`）
 - **ブール型のようなパラメータ**: true/false の代わりに ENABLED/DISABLED 値を使用
-- **必須パラメータ**: 説明に `[required]` を付ける
+- **必要なパラメータ**: 説明に `[required]` を付ける
 
 #### パラメータプロパティ順序
 ```yaml
@@ -231,7 +231,7 @@ ParameterName:
 
 ##### 説明形式ルール
 - **冠詞で始める**: 特定の項目には "The"、一般的な項目には "A" を使用
-- **コンテキストで終わる**: 必須パラメータには `[required]`、条件付きパラメータには `[SERVICE_NAME]` を追加
+- **コンテキストで終わる**: 必要なパラメータには `[required]`、条件付きパラメータには `[SERVICE_NAME]` を追加
 - **現在形を使用**: パラメータが何をするかではなく、何を表すかを説明
 
 ##### 説明パターン
@@ -500,14 +500,14 @@ SNSForAlert:
 
 #### CloudWatch Alarm 統合
 
-CloudWatch Alarm を組み込む際は、https://github.com/eijikominami/aws-cloudformation-templates/tree/master/monitoring に記載されているアプリケーションが使えそうなら、それを使用することを推奨します。これにより独自実装が不要になります。
+CloudWatch Alarm を組み込む際は、https://github.com/eijikominami/aws-cloudformation-templates/tree/master/monitoring に記載されているアプリケーションが使えそうなら、それを使用する。これにより独自実装が不要になります。
 
 ## Outputs セクション標準
 
 ### Output 定義ルール
 Outputs セクションは、一貫性と保守性のために以下の包括的なルールに従う必要があります：
 
-#### 必須 Outputs（含める必要がある）
+#### Outputs（含める）
 1. **クロススタック参照リソース**: 親または他のテンプレートによって参照される全てのリソース
 
 #### オプション Outputs（含めても良い）
@@ -641,14 +641,14 @@ Outputs:
 ```
 
 ### Output 検証チェックリスト
-- [ ] 全てのクロス参照リソースが出力されている（必須）
+- [ ] 全てのクロス参照リソースが出力されている
 - [ ] Output 名が命名規則に従っている
 - [ ] 説明が明確で一貫している
 - [ ] Outputs が正しく順序付けられている（タイプ優先順位、その後アルファベット順）
-- [ ] 条件付き出力が適切に条件付けられている
+- [ ] 条件付き出力に条件が設定されている
 - [ ] 未使用の出力がない（どこからも参照されていない出力）
 - [ ] 必要な出力のみが含まれている（出力の肥大化を避ける）
-- [ ] **cfn-lint が終了コード 0 で合格する（必須）**
+- [ ] **cfn-lint が終了コード 0 で合格する**
 
 ## 文字列引用符標準
 
@@ -879,9 +879,9 @@ SNSForAlert:
 
 ### CloudWatch Alarm 統合
 
-#### AWS Serverless Application Repository の使用（推奨）
+#### AWS Serverless Application Repository の使用
 
-CloudWatch Alarm を組み込む際は、https://github.com/eijikominami/aws-cloudformation-templates/tree/master/monitoring に記載されているアプリケーションが使えそうなら、それを使用することを推奨します。これにより独自実装が不要になります。
+CloudWatch Alarm を組み込む際は、https://github.com/eijikominami/aws-cloudformation-templates/tree/master/monitoring に記載されているアプリケーションが使えそうなら、それを使用する。これにより独自実装が不要になります。
 
 ## コメントとドキュメント
 
@@ -920,10 +920,10 @@ Resources:
 
 ## MCP 統合要件
 
-**CloudFormation/SAM テンプレート作成時の MCP 使用方法については、`aws-architecture.md` の「MCP 統合要件」セクションを参照してください。**
+CloudFormation/SAM テンプレート作成時の MCP 使用方法については、`aws-architecture.md` の「MCP 統合要件」セクションを参照。
 
-### 重要な原則
-- テンプレート作成前に必ず MCP で AWS ドキュメントを確認
+### 原則
+- テンプレート作成前に MCP で AWS ドキュメントを確認
 - リソーススキーマ情報を `get_resource_schema_information` で確認
 - 実装方法が複数ある場合は、メリット・デメリットを比較してユーザーに確認を求める
 
@@ -931,7 +931,7 @@ Resources:
 
 ## ネストされたスタック実装
 
-**設計原則は `aws-architecture.md` の「ネストされたスタックの設計原則」を参照してください。**
+設計原則は `aws-architecture.md` の「ネストされたスタックの設計原則」を参照。
 
 ### 基本実装パターン
 
@@ -968,7 +968,7 @@ ChildStack:
 
 ### 親子スタック間の値渡し実装
 
-#### パラメータ経由での値渡し（推奨）
+#### パラメータ経由での値渡し
 ```yaml
 # 親スタック - 子スタック呼び出し時にパラメータ渡し
 ChildStack:
@@ -1038,7 +1038,7 @@ Resources:
 ### 実装時の注意点
 
 #### 値の受け渡し
-- **必須**: パラメータ経由で全ての値を親スタックから子スタックに渡す
+- パラメータ経由で全ての値を親スタックから子スタックに渡す
 - **禁止**: `Fn::ImportValue` の使用は避ける
 - **理由**: 依存関係の明確化、デバッグの容易さ
 
@@ -1056,7 +1056,7 @@ Resources:
 
 ### 包括的なデプロイ前チェックリスト
 
-#### 必須検証（最初に合格する必要がある）
+#### 検証（最初に合格する）
 - [ ] **cfn-lint 検証が終了コード 0 で合格**
 - [ ] **全ての cfn-lint 警告とエラーが解決済み**
 - [ ] **テンプレート構文が有効**
@@ -1068,7 +1068,7 @@ Resources:
 - [ ] README ファイルが存在する（README.md と README_JP.md）
 
 #### テンプレート構造
-- [ ] テンプレートが必須セクション順序に従っている
+- [ ] テンプレートがセクション順序に従っている
 - [ ] 各主要セクションが1行の空白行で区切られている
 - [ ] Description が正確な形式パターンに従っている
 - [ ] SAM テンプレートに Transform が含まれている
@@ -1084,7 +1084,7 @@ Resources:
 - [ ] パラメータがアルファベット順に並んでいる
 - [ ] パラメータプロパティが正しい順序になっている
 - [ ] 説明が形式標準に従っている
-- [ ] コンテキストタグが適切に使用されている（[required]、[SERVICE_NAME]）
+- [ ] コンテキストタグが使用されている（[required]、[SERVICE_NAME]）
 - [ ] 標準パラメータが正確な定義を使用している
 - [ ] ブールパラメータが ENABLED/DISABLED 値を使用している
 - [ ] AllowedPattern が入力を正しく検証している（例: S3 命名規則）
@@ -1100,7 +1100,7 @@ Resources:
 - [ ] Outputs がアルファベット順に並んでいる
 - [ ] Output 名が内容を明確に示している
 - [ ] 全ての出力に説明がある
-- [ ] クロススタック参照リソースのみが出力されている（必須）
+- [ ] クロススタック参照リソースのみが出力されている
 - [ ] 不要な出力がない（出力の肥大化を避ける）
 
 ### 避けるべき一般的なアンチパターン
@@ -1140,7 +1140,7 @@ Resources:
 
 ### 品質保証ツール
 
-#### 必須検証（必須）
+#### 検証
 全ての CloudFormation テンプレートは、デプロイまたはコミット前に cfn-lint 検証に合格する必要があります：
 
 ```bash
@@ -1151,7 +1151,7 @@ cfn-lint template.yaml
 # Fix all warnings and errors before proceeding
 ```
 
-#### 追加検証（推奨）
+#### 追加検証
 ```bash
 # Template syntax validation
 aws cloudformation validate-template --template-body file://template.yaml
@@ -1167,36 +1167,13 @@ sam validate
 - **終了コード**: テンプレートが完成したと見なされる前に 0（成功）を返す必要がある
 
 #### 手動レビューチェックリスト
-1. **cfn-lint 検証（必須の最初のステップ）**
+1. **cfn-lint 検証（最初のステップ）**
 2. **ファイル命名の一貫性チェック**
 3. **テンプレート構造の検証**
 4. **パラメータ順序の検証**
 5. **リソース命名規則のチェック**
 6. **Description 形式の検証**
 7. **タグ構造の一貫性**
-
-## ファイル構成とディレクトリ構造
-
-### プロジェクトディレクトリ構造
-```
-aws-cloudformation-templates/
-├── [service-name]/                    # Service directory (lowercase, hyphenated)
-│   ├── README.md                      # English documentation
-│   ├── README_JP.md                   # Japanese documentation
-│   ├── templates/                     # CloudFormation templates
-│   │   ├── template.yaml              # Main service template
-│   │   ├── [service-feature].yaml    # Individual feature templates
-│   │   └── [aws-service].yaml        # AWS service-specific templates
-│   ├── sam-app/                       # SAM applications (if applicable)
-│   │   ├── template.yaml              # Main SAM template
-│   │   ├── [feature].yaml            # Feature-specific SAM templates
-│   │   └── [function-name]/           # Lambda function directories
-│   │       ├── lambda_function.py     # Lambda code
-│   │       └── requirements.txt       # Dependencies
-│   ├── readme/                        # Additional documentation (optional)
-│   └── scripts/                       # Helper scripts (optional)
-└── images/                            # Shared images for documentation
-```
 
 ### サービスディレクトリ命名
 - **形式**: 単語の区切りにハイフンを使用した小文字
@@ -1238,40 +1215,42 @@ sam-app/
   - 例: `sendNotificationToSlack`, `analyzeUnauthorizedApiCalls`
 - **ファイル名**: 常に `lambda_function.py` を使用（これを変更しない）
 
-### テンプレートサイズと複雑性のガイドライン
+## ファイル構成とディレクトリ構造
 
-#### テンプレート構成ルール
-- **単一責任**: 主要な AWS サービスまたは機能ごとに1つのテンプレート
-- **サイズ制限**: テンプレートあたり最大500行（推奨）
-- **複雑性制限**: テンプレートあたり最大50パラメータ
-- **ネストされたスタック**: 複雑な複数サービスデプロイに使用
-
-#### テンプレート分割ガイドライン
-以下の場合にテンプレートを分割：
-- テンプレートが500行を超える
-- 50以上のパラメータが必要
-- 1つのテンプレートに複数の無関係な AWS サービス
-- 異なるデプロイライフサイクルが必要
-
-#### 分割テンプレートのファイル命名
-```yaml
-# Original large template
-template.yaml
-
-# Split into:
-vpc.yaml              # VPC and networking
-ec2.yaml              # EC2 instances and related
-elb.yaml              # Load balancers
-monitoring.yaml       # CloudWatch and alarms
+### プロジェクトディレクトリ構造
 ```
+aws-cloudformation-templates/
+├── [service-name]/                    # Service directory (lowercase, hyphenated)
+│   ├── README.md                      # English documentation
+│   ├── README_JP.md                   # Japanese documentation
+│   ├── templates/                     # CloudFormation templates
+│   │   ├── template.yaml              # Main service template
+│   │   ├── [service-feature].yaml    # Individual feature templates
+│   │   └── [aws-service].yaml        # AWS service-specific templates
+│   ├── sam-app/                       # SAM applications (if applicable)
+│   │   ├── template.yaml              # Main SAM template
+│   │   ├── [feature].yaml            # Feature-specific SAM templates
+│   │   └── [function-name]/           # Lambda function directories
+│   │       ├── lambda_function.py     # Lambda code
+│   │       └── requirements.txt       # Dependencies
+│   ├── readme/                        # Additional documentation (optional)
+│   └── scripts/                       # Helper scripts (optional)
+└── images/                            # Shared images for documentation
+```
+
+
+
+
+
+
 
 ## 開発環境とツール
 
-### 必須ツール
+### ツール
 - **AWS CLI**: 適切な権限で設定済み
 - **SAM CLI**: サーバーレスアプリケーション用
 - **Python 3.x と pip**: Lambda 依存関係用
-- **CFN Lint**: テンプレート検証用（必須）
+- **CFN Lint**: テンプレート検証用
 
 ### 共通コマンド
 
@@ -1305,8 +1284,8 @@ cfn-lint template.yaml
 
 ## デプロイメントガイドライン
 
-### デプロイ前の必須確認手順（全プロジェクト共通）
-1. **プロジェクト固有の設計書確認**: デプロイ前に必ず該当プロジェクトの設計書（design.md）を確認する
+### デプロイ前の確認手順（全プロジェクト共通）
+1. **プロジェクト固有の設計書確認**: デプロイ前に該当プロジェクトの設計書（design.md）を確認する
 2. **設定ファイル管理方式の確認**: 設定ファイルの配置場所と管理方式を設計書で確認する
    - プロジェクトディレクトリ内（標準的な配置）
    - プロジェクトディレクトリ外（プライベートリポジトリ等）
@@ -1315,7 +1294,7 @@ cfn-lint template.yaml
 4. **デプロイ手順の確認**: プロジェクト固有のデプロイ手順があるかを設計書で確認する
 
 ### SAM デプロイメント手順
-1. **sam build実行**: デプロイ前に必ず`sam build`を実行する
+1. **sam build実行**: デプロイ前に`sam build`を実行する
 2. **samconfig.tomlの存在確認**: プロジェクトディレクトリにsamconfig.tomlがあるかチェック
 3. **設定ファイルがある場合**: `sam deploy` を使用（--guidedは不要）
 4. **設定ファイルがない場合**: `sam deploy --guided` を使用して初回設定
@@ -1323,7 +1302,7 @@ cfn-lint template.yaml
 ### パラメータ設定ガイドライン
 
 #### 1. 新たなパラメータが必要な場合
-- **必ず実際の値を確認してから設定する**
+- **実際の値を確認してから設定する**
 - 推測や仮定でテスト値を設定しない
 - 値が不明な場合は明確に質問する
 - ユーザーから値を取得するまでデプロイを実行しない
@@ -1337,9 +1316,9 @@ cfn-lint template.yaml
 #### 3. 機密情報の取り扱い
 - Client SecretなどはNoEcho: trueで保護
 - samconfig.tomlには機密情報を直接記載しない
-- デプロイ時の手動指定を推奨
+- デプロイ時の手動指定
 
-#### 4. パラメータ値確認の必須フロー
+#### 4. パラメータ値確認のフロー
 1. **新しいパラメータの検出**: テンプレートに新しいパラメータが追加された場合
 2. **ユーザーへの確認**: 「[パラメータ名]の値を教えてください」と明確に質問
 3. **値の取得待ち**: ユーザーから実際の値を取得するまで待機
@@ -1347,14 +1326,14 @@ cfn-lint template.yaml
 
 ### デプロイコマンド例
 ```bash
-# 1. 設計書確認（必須）
+# 1. 設計書確認
 # プロジェクトの .kiro/specs/[project-name]/design.md を確認
 
 # 2. 設定ファイル取得（設計書の指示に従う）
 # 例：プライベートリポジトリから取得する場合
 cp ../../../aws-cfn-conf-[account]/[project]/samconfig.toml .
 
-# 3. 必須：デプロイ前に必ずビルドを実行
+# 3. デプロイ前にビルドを実行
 sam build
 
 # 4. デプロイ実行
@@ -1375,7 +1354,7 @@ sam deploy --guided
 
 #### UPDATE_ROLLBACK_FAILED状態の対処法
 
-**重要**: スタックがUPDATE_ROLLBACK_FAILED状態になった場合、スタックを削除せずに更新ロールバックを続行する
+スタックがUPDATE_ROLLBACK_FAILED状態になった場合、スタックを削除せずに更新ロールバックを続行する
 
 ##### 対処手順
 1. **CloudWatch Logsで根本原因を調査**
@@ -1395,7 +1374,7 @@ sam deploy --guided
 
 3. **問題修正後の再デプロイ**
    ```bash
-   # SAMの場合：必須：修正後は必ずビルドしてからデプロイ
+   # SAMの場合：修正後はビルドしてからデプロイ
    sam build
    sam deploy
    
@@ -1420,7 +1399,7 @@ sam deploy --guided
 ## バージョン管理とメンテナンス
 
 ### テンプレートバージョニング
-- 重要な変更を行う際はテンプレートの説明を更新
+- 変更を行う際はテンプレートの説明を更新
 - ネストされたスタックアプリケーションにはセマンティックバージョニングを使用
 - コミットメッセージに破壊的変更を文書化
 

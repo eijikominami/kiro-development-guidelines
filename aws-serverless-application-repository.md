@@ -11,11 +11,11 @@ fileMatchPattern: 'aws-cloudformation-templates/monitoring/**'
 
 ## 基本方針
 
-**再利用可能なリソースは、AWS Serverless Application Repository に登録可能であれば、必ず登録する。**
+**再利用可能なリソースは、AWS Serverless Application Repository に登録可能であれば、登録する。**
 
 ### 対象リソースの判断基準
 
-#### 必須確認事項
+#### 確認事項
 
 新しいリソースを作成する際は、以下の手順で AWS Serverless Application Repository への登録可否を判断する：
 
@@ -23,8 +23,8 @@ fileMatchPattern: 'aws-cloudformation-templates/monitoring/**'
    - 検索キーワード：「AWS Serverless Application Repository supported resources [リソースタイプ]」
    - 公式ドキュメント：https://docs.aws.amazon.com/serverlessrepo/latest/devguide/list-supported-resources.html
 
-2. **登録可能な場合は必ず登録**
-   - サポートリソースリストに含まれている場合は、必ず AWS Serverless Application Repository に登録
+2. **登録可能な場合は登録**
+   - サポートリソースリストに含まれている場合は、 AWS Serverless Application Repository に登録
    - 個別のテンプレートとして作成せず、再利用可能なアプリケーションとして管理
 
 3. **登録不可能な場合のみ個別実装**
@@ -41,7 +41,7 @@ AWS Serverless Application Repository は以下のリソースタイプをサポ
 - **S3**: `AWS::S3::Bucket`, `AWS::S3::BucketPolicy`
 - **その他多数**: API Gateway, DynamoDB, Glue, Step Functions, Secrets Manager 等
 
-完全なリストは MCP で確認してください。
+完全なリストは MCP で確認する。
 
 ### 理由
 
@@ -57,9 +57,9 @@ AWS Serverless Application Repository は以下のリソースタイプをサポ
 - **CloudWatch Alarm**: Lambda、Glue、ACM、その他 AWS サービス用
 - **SNS Topic**: アラート通知用
 
-## 監視実装の二段階プロセス（必須）
+## 監視実装の二段階プロセス
 
-**監視リソース（CloudWatch Alarms等）を実装する際は、必ず以下の二段階プロセスに従う。**
+**監視リソース（CloudWatch Alarms等）を実装する際は、以下の二段階プロセスに従う。**
 
 ### Phase 1: AWS Serverless Application Repository の確認と登録
 
@@ -85,7 +85,7 @@ AWS Serverless Application Repository は以下のリソースタイプをサポ
 1. **SAM テンプレート作成**
    - `sam-app/[service].yaml` を作成
    - cloudformation-template-guidelines.md に記載の制約を守る
-   - CFN Lint 実行（exit code 0 必須）
+   - CFN Lint 実行（exit code 0）
 
 2. **README 作成**
    - `readme/cloudwatch-alarm-about-[service].md` を作成
@@ -104,8 +104,8 @@ AWS Serverless Application Repository は以下のリソースタイプをサポ
 6. **ApplicationId を記録**
    - 登録後に発行される ApplicationId を記録
 
-**重要な変更点**:
-- テンプレートに `Metadata` セクションが必須
+**変更点**:
+- テンプレートに `Metadata` セクションを含める
 - `SemanticVersion` はテンプレートに含めない（`--semantic-version` オプションで渡す）
 - `sam publish` を使用（S3 URL の手動管理が不要）
 
@@ -140,7 +140,7 @@ cfn-lint template.yaml
 
 ### タスク分割の原則
 
-**tasks.md で監視実装タスクを記載する際は、必ず以下の 2 つのタスクに分割する：**
+**tasks.md で監視実装タスクを記載する際は、以下の 2 つのタスクに分割する：**
 
 #### Task X.1a: AWS Serverless Application Repository の確認と登録
 
@@ -154,7 +154,7 @@ cfn-lint template.yaml
 
 - Task X.1a で確認・登録した Serverless Application Repository アプリケーションを AWS::Serverless::Application で参照
 - CloudFormation テンプレートに監視リソースを追加
-- CFN Lint 実行（exit code 0 必須）
+- CFN Lint 実行（exit code 0）
 - **人間チェック**: 監視設定とアラーム設定を確認
 
 ### 避けるべきパターン
@@ -170,11 +170,11 @@ cfn-lint template.yaml
 - ✅ Phase 2: CloudFormation テンプレートで参照
 - ✅ タスクを 2 つに分割（Task X.1a と Task X.1b）
 
-## 重要ルール（必須）
+## ルール
 
 ### リソース命名規則
 
-**AWS::Serverless::Application リソースの命名は、監視対象サービス名を使用する。**
+AWS::Serverless::Application リソースの命名は、監視対象サービス名を使用する。
 
 #### CloudWatch Alarm 用の命名パターン
 
@@ -191,12 +191,6 @@ CloudWatchAlarmGlue:
   Properties:
     Location:
       ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/cloudwatch-alarm-about-glue
-
-CloudWatchAlarmEC2:
-  Type: AWS::Serverless::Application
-  Properties:
-    Location:
-      ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/cloudwatch-alarm-about-ec2
 ```
 
 #### 複数の同一サービスを監視する場合
@@ -210,26 +204,20 @@ CloudWatchAlarmMediaLive1:
   Type: AWS::Serverless::Application
 ```
 
-#### 避けるべき命名
-
-- ❌ `LambdaMonitoringStack` - "Stack" サフィックスは不要
-- ❌ `MonitoringLambda` - "CloudWatchAlarm" プレフィックスが必要
-- ❌ `LambdaAlarm` - "CloudWatch" が欠けている
-
 ### 実装順序の厳守
 
-**親テンプレートを作成する前に、必ず Serverless Application Repository への登録を完了させる。**
+**親テンプレートを作成する前に、 Serverless Application Repository への登録を完了させる。**
 
 1. ✅ SAM テンプレート作成
 2. ✅ README 作成
-3. ✅ buildspec 更新（重要）
+3. ✅ buildspec 更新
 4. ✅ Git タグでリリース
 5. ✅ ApplicationId 取得
 6. ✅ 親テンプレートで参照
 
 この順序を守らないと、親テンプレートのデプロイ時に ApplicationId が存在せずエラーになります。
 
-### 必須チェック項目
+### チェック項目
 
 - [ ] CFN Lint が exit code 0 で成功している
 - [ ] テンプレートに `Metadata: AWS::ServerlessRepo::Application` セクションが追加されている
@@ -241,22 +229,17 @@ CloudWatchAlarmMediaLive1:
 - [ ] パブリック公開ポリシーを設定している（`aws serverlessrepo put-application-policy`）
 - [ ] デプロイして動作確認している
 
-### buildspec 更新の重要性
+### buildspec 更新
 
 **buildspec を更新せずにタグをプッシュしても、新しいテンプレートは Serverless Application Repository に登録されません。**
 
-新しいテンプレートを追加する際は、必ず buildspec ファイルの `build` フェーズと `post_build` フェーズの両方の `for` ループに追加してください。
+新しいテンプレートを追加する際は、 buildspec ファイルの `build` フェーズと `post_build` フェーズの両方の `for` ループに追加する。
 
-### sam publish 方式の利点
 
-- ✅ S3 URL の手動管理が不要
-- ✅ テンプレートの Metadata セクションから自動的に情報を取得
-- ✅ `--semantic-version` オプションでバージョンを動的に指定可能
-- ✅ 新規作成と更新を同じコマンドで実行可能
 
 ## 詳細な実装手順
 
-具体的な実装手順、コマンド例、トラブルシューティングについては、以下のドキュメントを参照してください：
+具体的な実装手順、コマンド例、トラブルシューティングについては、以下のドキュメントを参照：
 
 **#[[file:aws-cloudformation-templates/monitoring/CONTRIBUTING.md]]**
 
