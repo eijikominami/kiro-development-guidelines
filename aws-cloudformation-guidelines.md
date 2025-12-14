@@ -439,7 +439,7 @@ SNSForAlert:
   Properties:
     Location:
       ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/sns-topic
-      SemanticVersion: 2.2.14
+      SemanticVersion: 2.2.24
     NotificationARNs:
       - !If
         - CreateSNSForDeployment
@@ -457,7 +457,7 @@ SNSForDeployment:
   Properties:
     Location:
       ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/sns-topic
-      SemanticVersion: 2.2.14
+      SemanticVersion: 2.2.24
     Parameters:
       TopicName: !Sub Deployment-createdby-${AWS::StackName}
     Tags:
@@ -819,7 +819,7 @@ SNSForAlert:
   Properties:
     Location:
       ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/sns-topic
-      SemanticVersion: 2.2.14
+      SemanticVersion: 2.2.24
     NotificationARNs:
       - !If
         - CreateSNSForDeployment
@@ -837,7 +837,7 @@ SNSForDeployment:
   Properties:
     Location:
       ApplicationId: arn:aws:serverlessrepo:us-east-1:172664222583:applications/sns-topic
-      SemanticVersion: 2.2.14
+      SemanticVersion: 2.2.24
     Parameters:
       TopicName: !Sub Deployment-createdby-${AWS::StackName}
     Tags:

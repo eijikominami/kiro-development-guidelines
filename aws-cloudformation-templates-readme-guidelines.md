@@ -149,7 +149,6 @@ aws-cloudformation-templates/
 | deployment | デプロイ |
 | template | テンプレート |
 | parameter | パラメータ |
-| troubleshooting | トラブルシューティング |
 
 ---
 
