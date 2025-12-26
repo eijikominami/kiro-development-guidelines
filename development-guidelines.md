@@ -10,56 +10,111 @@ inclusion: always
 - コードコメント: 英語可
 - 変数名・関数名: 英語
 
-## ブランチ戦略
+## Git ワークフロー
 
-main ブランチへの直接コミットは禁止。
+### ブランチ戦略
 
-| ブランチ種類 | 命名規則 | 用途 |
-|-------------|---------|------|
-| main | - | 直接コミット禁止 |
-| feature | `feature/<機能名>` | 新機能開発 |
-| fix | `fix/<修正内容>` | バグ修正 |
-| hotfix | `hotfix/<バージョン>-<修正内容>` | 緊急修正 |
+main への直接コミット禁止。
 
-## バージョニング
+| ブランチ種別 | 命名規則 |
+|-------------|---------|
+| 新機能 | `feature/<機能名>` |
+| バグ修正 | `fix/<修正内容>` |
+| 緊急修正 | `hotfix/<バージョン>-<修正内容>` |
 
-セマンティックバージョニング（MAJOR.MINOR.PATCH）を採用:
-- MAJOR: 互換性のない変更
-- MINOR: 後方互換性を保った機能追加
-- PATCH: 後方互換性を保ったバグ修正
+### バージョニング
 
-## タスク実行プロセス
+セマンティックバージョニング（MAJOR.MINOR.PATCH）を使用。
 
-### 実装開始前
+## タスク実行ルール
 
-1. タスクに「〜に従って」「〜.md に従って」の記載がある場合、そのファイルを先に読む
-2. 参照ファイルの要件をチェックリスト化する
+### 実装開始前（必須）
 
-### 実装完了前
+1. タスクに「〜に従って」の記載がある場合 → 参照ファイルを先に読む
+2. 参照ファイルの要件をチェックリスト化
+
+### 実装完了前（必須）
 
 1. タスクの全指示項目を確認
 2. 検証項目（CFN Lint 等）を実行
 3. ガイドライン準拠を確認
 
-### CloudFormation/SAM テンプレート作成時
+### CloudFormation/SAM 作成時
 
 1. `aws-cloudformation-guidelines.md` を参照
 2. MCP で AWS ドキュメントを確認
-3. CFN Lint で検証（exit code 0）
+3. CFN Lint で検証（exit code 0 必須）
 
-## 実装変更時のドキュメント更新
+## 外部サービス・ライブラリの制約調査
+
+実装前に制約を調査・文書化する。
+
+### 調査すべき制約
+
+- 入力: フォーマット、コーデック、ファイルサイズ上限
+- 出力: 生成可能フォーマット、解像度制限
+- 処理: 最大処理時間、同時実行数、レート制限
+- リソース: メモリ、ストレージ、ネットワーク帯域
+- コスト: 料金体系、無料枠、課金単位
+
+### 調査手順
+
+1. 公式ドキュメントで「Quotas」「Limits」「Supported formats」を検索
+2. AWS の場合は MCP で最新情報を確認
+3. requirements.md に制約を追記
+4. design.md に対応方針を記載
+
+## 手動作業の自動化
+
+手動で実行した作業は、再現性のあるスクリプトにする。
+
+### スクリプト化すべき作業
+
+- AWS リソースの作成（Lambda Layer、S3 バケット等）
+- 環境セットアップ
+- デプロイ手順
+- データ移行
+
+### スクリプト作成の必須要素
+
+```bash
+#!/bin/bash
+set -e  # エラー時に停止
+
+# ヘルプ表示
+show_help() { ... }
+
+# 引数解析（--help, --dry-run 必須）
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run) DRY_RUN=true; shift ;;
+        --help) show_help; exit 0 ;;
+        *) echo "エラー: 不明なオプション: $1"; exit 1 ;;
+    esac
+done
+
+# 一時ファイルのクリーンアップ
+WORK_DIR=$(mktemp -d)
+trap "rm -rf $WORK_DIR" EXIT
+
+# 進捗表示
+echo "[1/N] ステップ 1..."
+```
+
+## ドキュメント更新ルール
 
 コード変更完了直後に README.md を更新する。「後でまとめて」は禁止。
 
 ### 更新順序
 
 1. コード実装
-2. README.md（即時）
+2. README.md（即時更新）
 3. 仕様書（requirements.md → design.md → tasks.md）
 4. CHANGELOG.md
-5. 外部システム（GitHub Actions、Homebrew Formula 等）
 
-### README.md 更新が必要なケース
+### README.md 更新トリガー
+
+以下の変更時は必ず更新:
 
 - 機能追加・削除
 - UI/メニュー変更
@@ -93,19 +148,11 @@ mcp_github_create_pull_request(
 )
 ```
 
-### その他の GitHub 操作
-
-| 操作 | ツール |
-|-----|-------|
-| Issue 作成 | `mcp_github_issue_write` |
-| Issue コメント | `mcp_github_add_issue_comment` |
-| PR 更新 | `mcp_github_update_pull_request` |
-
 ## 関連ガイドライン
 
-| ガイドライン | 内容 |
-|-------------|------|
-| `quality-assurance-guidelines.md` | 品質保証、Pre-commit、リリース前確認 |
-| `testing-guidelines.md` | テスト戦略、カバレッジ目標 |
-| `aws-cloudformation-guidelines.md` | CFN/SAM テンプレート作成 |
-| `aws-architecture.md` | AWS サービス設計 |
+| ガイドライン | 参照タイミング |
+|-------------|---------------|
+| `quality-assurance-guidelines.md` | 品質保証、リリース前確認時 |
+| `testing-guidelines.md` | テスト作成・実行時 |
+| `aws-cloudformation-guidelines.md` | CFN/SAM テンプレート作成時 |
+| `aws-architecture.md` | AWS サービス設計時 |
