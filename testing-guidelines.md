@@ -45,19 +45,21 @@ tests/
 
 ## テスト実行コマンド
 
+プロジェクトで指定された Python バージョンとテストランナーを使用する。
+
 ```bash
-# 単体テスト
-python3.11 -m pytest tests/unit/ -v
+# 単体テスト（例: pytest）
+pytest tests/unit/ -v
 
 # Property-based テスト
-python3.11 -m pytest tests/properties/ -v
+pytest tests/properties/ -v
 
 # デプロイ後テスト
-python3.11 -m pytest tests/integration/ -v -m deployed
+pytest tests/integration/ -v -m deployed
 
 # 全テスト + カバレッジ
-python3.11 -m coverage run -m pytest tests/ -v
-python3.11 -m coverage report
+coverage run -m pytest tests/ -v
+coverage report
 ```
 
 ## テスト実行タイミング
@@ -77,7 +79,7 @@ python3.11 -m coverage report
 |-----|---|
 | 設定の誤り | 環境変数の未設定、IAM 権限不足 |
 | 依存関係の不足 | Lambda Layer の欠落、バイナリの PATH 設定ミス |
-| API パラメータの誤り | 必須パラメータの欠落、値の制約違反 |
+| API パラメータの誤り | パラメータの欠落、値の制約違反 |
 
 ```python
 import pytest
@@ -103,7 +105,7 @@ Property-based テストは時間がかかっても完了まで実行する。�
 
 | ルール | 説明 |
 |--------|------|
-| 完了必須 | Property-based テストは時間がかかっても最後まで実行する |
+| 完了まで実行 | Property-based テストは時間がかかっても最後まで実行する |
 | タイムアウト | 単体テストより長いタイムアウトを設定（5-10 分） |
 | スキップ禁止 | 時間を理由にスキップしない |
 
@@ -163,12 +165,49 @@ def test_file_access_combinations(is_local, is_in_icloud, expected):
 # ❌ 特定の狭い日付範囲のみ
 video = create_video(capture_date=datetime(2008, 6, 15))
 
-# ✅ 現実的で広い日付範囲（現在は 2025 年）
+# ✅ 現実的で広い日付範囲
 videos = [
     create_video(capture_date=datetime(2015, 6, 15)),
     create_video(capture_date=datetime(2024, 11, 10)),
 ]
 ```
+
+## テストデータの独立性
+
+テストデータは実装コードから独立して定義する。実装の定数やリストを直接参照すると、実装の漏れをテストが検出できない。
+
+```python
+# ❌ 実装を参照（実装の漏れを検出できない）
+from myapp.analyzer import OPTIMIZED_CODECS
+
+@given(codec=st.sampled_from(list(OPTIMIZED_CODECS)))
+def test_optimized_codecs(self, codec):
+    assert analyzer.classify(codec) == "optimized"
+
+# ✅ テスト側で独立して定義（外部仕様から）
+# Source: FFmpeg documentation, Apple Technical Note TN2224
+EXPECTED_H265_CODECS = ["hevc", "hev1", "hvc1", "h265", "x265"]
+
+def test_implementation_covers_all_h265_variants(self):
+    """実装が仕様で定義された全バリアントをカバーしていることを検証"""
+    from myapp.analyzer import OPTIMIZED_CODECS
+    for codec in EXPECTED_H265_CODECS:
+        assert codec in OPTIMIZED_CODECS, f"Missing: {codec}"
+```
+
+### 原則
+
+| ルール | 説明 |
+|--------|------|
+| 独立定義 | テストデータは外部仕様（ドキュメント、RFC 等）から定義 |
+| 出典明記 | テストデータの出典をコメントで記載 |
+| カバレッジ検証 | 実装が仕様の全項目をカバーしていることをテスト |
+
+### 適用対象
+
+- コーデック名、ファイル形式などの分類リスト
+- エラーコード、ステータスコードの定義
+- 外部サービスの制約値（サイズ上限、タイムアウト等）
 
 ## 要件ベーステスト
 
@@ -196,11 +235,11 @@ class TestCodecClassification:
 
 ```python
 def test_config_roundtrip():
-    original = AWSConfig(s3_bucket="test", role_arn="arn:...", profile="test")
-    dict_data = _config_to_dict(original)
-    restored = _dict_to_config(dict_data)
-    assert restored.s3_bucket == original.s3_bucket
-    assert restored.profile == original.profile
+    original = Config(field1="test", field2="value")
+    dict_data = config_to_dict(original)
+    restored = config_from_dict(dict_data)
+    assert restored.field1 == original.field1
+    assert restored.field2 == original.field2
 ```
 
 ### 状態の一貫性確認
@@ -208,14 +247,14 @@ def test_config_roundtrip():
 ```python
 # ❌ 個別フィールドのみテスト
 def test_skip_reason_is_set():
-    result = analyzer.analyze_video(short_video)
+    result = analyzer.analyze(item)
     assert result.skip_reason == "Duration too short"
 
 # ✅ 関連フィールドの一貫性をテスト
 def test_skip_reason_and_status_consistency():
-    result = analyzer.analyze_video(short_video)
+    result = analyzer.analyze(item)
     assert result.skip_reason == "Duration too short"
-    assert result.status == CandidateStatus.SKIPPED
+    assert result.status == Status.SKIPPED
 ```
 
 ## カバレッジ目標
@@ -239,16 +278,16 @@ Phase 完了時・リリース前に以下を満たすこと。未達成のま�
 ### 検証コマンド
 
 ```bash
-# カバレッジ計測
-python3.11 -m coverage run -m pytest tests/ -v
+# カバレッジ計測（プロジェクトのテストランナーを使用）
+coverage run -m pytest tests/ -v
 
 # レポート表示（モジュール別）
-python3.11 -m coverage report --show-missing
+coverage report --show-missing
 
 # 目標未達成モジュールの特定
 # - 70% 未満のビジネスロジック → テスト追加
 # - 50% 未満の設定管理 → テスト追加
-# - 30% 未満の UI → テスト追加推奨
+# - 30% 未満の UI → テスト追加を推奨
 ```
 
 ## tasks.md でのテストタスク記述
@@ -274,15 +313,15 @@ python3.11 -m coverage report --show-missing
 
 ```python
 # ❌ モックのみ
-def test_menubar_initialization():
-    with patch('rumps.App.__init__') as mock_init:
+def test_app_initialization():
+    with patch('framework.App.__init__') as mock_init:
         mock_init.return_value = None
-        app = DisplayLayoutMenuBar()
+        app = MyApp()
 
 # ✅ 実際の初期化
-def test_menubar_title_initialization():
-    app = DisplayLayoutMenuBar()
-    assert app.title == "⧈"
+def test_app_title_initialization():
+    app = MyApp()
+    assert app.title == "Expected Title"
 ```
 
 ## Homebrew Formula テスト（該当する場合）

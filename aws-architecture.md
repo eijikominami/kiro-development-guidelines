@@ -4,11 +4,11 @@ inclusion: always
 
 # AWS アーキテクチャガイドライン
 
-## 必須: MCP による情報収集
+## MCP による情報収集
 
 AWS 実装時は MCP で AWS ドキュメントを確認する。事前学習の知識に頼らない。
 
-実装前に必ず確認:
+実装前に確認:
 1. `mcp_aws_docs_search_documentation` で最新ドキュメントを検索
 2. 複数の実現方法がある場合はメリット・デメリットを比較して提示
 3. CloudFormation/SAM テンプレート作成時は `aws-cloudformation-guidelines.md` を参照
@@ -81,7 +81,7 @@ cd layer && zip -r9 ../layer.zip bin/
 aws lambda publish-layer-version \
   --layer-name my-layer \
   --content S3Bucket=my-bucket,S3Key=layers/layer.zip \
-  --compatible-runtimes python3.11 \
+  --compatible-runtimes <runtime> \
   --compatible-architectures x86_64
 ```
 
